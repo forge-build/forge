@@ -62,7 +62,7 @@ func TestConnectAuthPrecedence(t *testing.T) {
 		t.Fail()
 	}
 	if count != 1 {
-		t.Logf("Should have called the password key method %d times", count)
+		t.Logf("Should have called the password key method 1 time, called %d times", count)
 		t.Fail()
 	}
 }

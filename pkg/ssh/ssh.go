@@ -22,23 +22,23 @@ import (
 
 var (
 	// ErrInvalidUsername is returned when the username is invalid.
-	ErrInvalidUsername = errors.New("A valid username must be supplied")
+	ErrInvalidUsername = errors.New("a valid username must be supplied")
 	// ErrInvalidAuth is returned when the username is invalid.
-	ErrInvalidAuth = errors.New("Invalid authorization method: missing password or key")
+	ErrInvalidAuth = errors.New("invalid authorization method: missing password or key")
 	// ErrSSHInvalidMessageLength is returned when the scp implementation gets an invalid number of messages.
-	ErrSSHInvalidMessageLength = errors.New("Invalid message length")
+	ErrSSHInvalidMessageLength = errors.New("invalid message length")
 	// ErrTimeout is returned when a timeout occurs waiting for sshd to respond.
-	ErrTimeout = errors.New("Timed out waiting for sshd to respond")
+	ErrTimeout = errors.New("timed out waiting for sshd to respond")
 	// ErrKeyGeneration is returned when the library fails to generate a key.
-	ErrKeyGeneration = errors.New("Unable to generate key")
+	ErrKeyGeneration = errors.New("unable to generate key")
 	// ErrValidation is returned when we fail to validate a key.
-	ErrValidation = errors.New("Unable to validate key")
+	ErrValidation = errors.New("unable to validate key")
 	// ErrPublicKey is returned when gossh fails to parse the public key.
-	ErrPublicKey = errors.New("Unable to convert public key")
+	ErrPublicKey = errors.New("unable to convert public key")
 	// ErrUnableToWriteFile is returned when the library fails to write to a file.
-	ErrUnableToWriteFile = errors.New("Unable to write file")
+	ErrUnableToWriteFile = errors.New("unable to write file")
 	// ErrNotImplemented is returned when a function is not implemented (typically by the Mock implementation).
-	ErrNotImplemented = errors.New("Operation not implemented")
+	ErrNotImplemented = errors.New("operation not implemented")
 	// Setup a mutex for the close channel for thread safety.
 	closeMutex sync.Mutex
 )
@@ -75,7 +75,6 @@ type Client interface {
 // Credentials supplies SSH credentials.
 type Credentials struct {
 	mu            sync.Mutex
-	AuthMethod    string
 	SSHUser       string
 	SSHPassword   string
 	SSHPrivateKey string
@@ -167,13 +166,13 @@ func (client *SSHClient) Connect() error {
 		return err
 	}
 
-	if client.Creds.AuthMethod == PasswordAuth {
-		auth, err = getAuth(client.Creds, PasswordAuth)
+	if client.Creds.SSHPrivateKey != "" {
+		auth, err = getAuth(client.Creds, KeyAuth)
 		if err != nil {
 			return err
 		}
-	} else if client.Creds.AuthMethod == KeyAuth {
-		auth, err = getAuth(client.Creds, KeyAuth)
+	} else if client.Creds.SSHPassword != "" {
+		auth, err = getAuth(client.Creds, PasswordAuth)
 		if err != nil {
 			return err
 		}
@@ -275,9 +274,9 @@ func (client *SSHClient) Download(dst io.WriteCloser, remotePath string) error {
 
 		// 3 ack messages; 1 to initiate, 1 for the message, 1 for the data
 		// https://blogs.oracle.com/janp/entry/how_the_scp_protocol_works
-		fmt.Fprintf(ackPipe, string(byte(0)))
-		fmt.Fprintf(ackPipe, string(byte(0)))
-		fmt.Fprintf(ackPipe, string(byte(0)))
+		fmt.Fprint(ackPipe, string(byte(0)))
+		fmt.Fprint(ackPipe, string(byte(0)))
+		fmt.Fprint(ackPipe, string(byte(0)))
 	}()
 
 	// This goroutine is for downloading the file.
@@ -432,15 +431,7 @@ func (client *SSHClient) Validate() error {
 		return ErrInvalidUsername
 	}
 
-	if client.Creds.AuthMethod == "" {
-		return ErrInvalidAuth
-	}
-
-	if client.Creds.AuthMethod == PasswordAuth && client.Creds.SSHPassword == "" {
-		return ErrInvalidAuth
-	}
-
-	if client.Creds.AuthMethod == KeyAuth && client.Creds.SSHPrivateKey == "" {
+	if client.Creds.SSHPassword == "" && client.Creds.SSHPrivateKey == "" {
 		return ErrInvalidAuth
 	}
 
