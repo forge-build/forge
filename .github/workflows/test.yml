@@ -5,6 +5,9 @@ on:
   pull_request:
     branches: ["main", "release-*"]
 
+permissions:
+  pull-requests: write # Allow commenting on pull requests.
+
 jobs:
   go_test:
     runs-on: ubuntu-latest
