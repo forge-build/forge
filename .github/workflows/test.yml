@@ -5,6 +5,8 @@ on:
   pull_request:
     branches: ["main", "release-*"]
 
+permissions: write-all
+
 jobs:
   go_test:
     runs-on: ubuntu-latest
@@ -35,7 +37,6 @@ jobs:
           hide_complexity: "true"
 
       - name: PR comment with file
-        permissions: write-all # Allow commenting on pull requests.
         uses: thollander/actions-comment-pull-request@v2
         if: github.event_name == 'pull_request'
         with:
