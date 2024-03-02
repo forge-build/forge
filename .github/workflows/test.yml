@@ -5,15 +5,12 @@ on:
   pull_request:
     branches: ["main", "release-*"]
 
-permissions:
-  pull-requests: write # Allow commenting on pull requests.
-
 jobs:
   go_test:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4.1.1
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -38,6 +35,7 @@ jobs:
           hide_complexity: "true"
 
       - name: PR comment with file
+        permissions: write-all # Allow commenting on pull requests.
         uses: thollander/actions-comment-pull-request@v2
         if: github.event_name == 'pull_request'
         with:
