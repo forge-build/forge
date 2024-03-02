@@ -17,6 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -28,14 +29,27 @@ type BuildSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	// Foo is an example field of Build. Edit build_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
+	// InfrastructureRef is a reference to the infrastructure object which contains the types of machines to build.
+	// for e.g infrastructureRef: {kind: "AWSBuild", name: "ubuntu-2204"}
+	InfrastructureRef *corev1.ObjectReference `json:"infrastructureRef"`
 }
 
 // BuildStatus defines the observed state of Build
 type BuildStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
+
+	// MachineReady is the state of the machine, true if running, false if not
+	MachineReady bool `json:"machineReady"`
+
+	// Cnnected is the state of the connection to the machine, true if connected, false if not
+	Connected bool `json:"connected"`
+
+	// ProvisionersReady is the state of the provisioners, true if provisioned successfully, false if not
+	ProvisionersReady bool `json:"provisionersReady"`
+
+	// Ready is the state of the build process, true if machine image is ready, false if not
+	Ready bool `json:"ready"`
 }
 
 //+kubebuilder:object:root=true

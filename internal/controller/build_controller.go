@@ -47,9 +47,25 @@ type BuildReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.17.0/pkg/reconcile
 func (r *BuildReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = log.FromContext(ctx)
+	l := log.FromContext(ctx)
 
-	// TODO(user): your logic here
+	// l.Info("Hello from BuildReconciler")
+
+	var build imagev1alpha1.Build
+	if err := r.Get(ctx, req.NamespacedName, &build); err != nil {
+		l.Error(err, "unable to fetch Build")
+		return ctrl.Result{}, client.IgnoreNotFound(err)
+	}
+
+	infrastructureRef := build.Spec.InfrastructureRef
+	if infrastructureRef == nil {
+		l.Info("InfrastructureRef is nil")
+		return ctrl.Result{}, nil
+	}
+	// preety print the infrastructureRef
+	if infrastructureRef.Kind == "AWSBuild" {
+		l.Info("InfrastructureRef is AWSBuild")
+	}
 
 	return ctrl.Result{}, nil
 }
