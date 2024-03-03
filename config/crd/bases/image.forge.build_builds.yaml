@@ -97,7 +97,7 @@ spec:
                 type: boolean
               machineReady:
                 description: MachineReady is the state of the machine, which will
-                  be seted to true after it sucessfully in running state
+                  be seted to true after it successfully in running state
                 type: boolean
               provisionersReady:
                 description: |-

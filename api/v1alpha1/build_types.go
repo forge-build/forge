@@ -40,16 +40,20 @@ type BuildStatus struct {
 	// Important: Run "make" to regenerate code after modifying this file
 
 	// MachineReady is the state of the machine, which will be seted to true after it successfully in running state
+	//+optional
 	MachineReady *bool `json:"machineReady,omitempty"`
 
 	// Connected describes if the connection to the underlying infrastructure machine has been established
+	//+optional
 	Connected *bool `json:"connected,omitempty"`
 
 	// ProvisionersReady describes the state of provisioners for the Build
 	// once all provisioners has finished successfully this will be true
+	//+optional
 	ProvisionersReady *bool `json:"provisionersReady,omitempty"`
 
 	// Ready is the state of the build process, true if machine image is ready, false if not
+	//+optional
 	Ready *bool `json:"ready,omitempty"`
 }
 
