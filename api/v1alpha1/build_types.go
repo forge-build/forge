@@ -39,7 +39,7 @@ type BuildStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	// MachineReady is the state of the machine, which will be seted to true after it sucessfully in running state
+	// MachineReady is the state of the machine, which will be seted to true after it successfully in running state
 	MachineReady *bool `json:"machineReady,omitempty"`
 
 	// Connected describes if the connection to the underlying infrastructure machine has been established
