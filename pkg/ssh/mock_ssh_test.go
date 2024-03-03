@@ -105,7 +105,10 @@ func TestMockSSHClient_Run(t *testing.T) {
 	expectedError := errors.New("run error")
 	c.MockRun = func(cmd string, out io.Writer, err io.Writer) error {
 		if cmd != command || out != stdout || err != stderr {
-			t.Errorf("Expected command %s, stdout %v, stderr %v, got command %s, stdout %v, stderr %v", command, stdout, stderr, cmd, out, err)
+			if cmd != command || out != stdout || err != stderr {
+				t.Errorf("Expected command %s, stdout %v, stderr %v, got command %s, stdout %v, stderr %v",
+					command, stdout, stderr, cmd, out, err)
+			}
 		}
 		return expectedError
 	}
@@ -144,9 +147,6 @@ func TestMockSSHClient_WaitForSSH(t *testing.T) {
 	// Test case 2: MockWaitForSSH is defined
 	expectedError := errors.New("wait for SSH error")
 	c.MockWaitForSSH = func(maxWait time.Duration) error {
-		if maxWait != maxWait {
-			t.Errorf("Expected maxWait %v, got %v", maxWait, maxWait)
-		}
 		return expectedError
 	}
 	err = c.WaitForSSH(maxWait)
