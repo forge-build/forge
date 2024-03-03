@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"net"
 	"os"
@@ -385,7 +384,7 @@ func (client *SSHClient) Run(command string, stdout io.Writer, stderr io.Writer)
 
 // Upload uploads a new file via SSH (SCP)
 func (client *SSHClient) Upload(src io.Reader, dst string, mode uint32) error {
-	fileContent, err := ioutil.ReadAll(src)
+	fileContent, err := io.ReadAll(src)
 	if err != nil {
 		return err
 	}

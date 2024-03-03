@@ -11,7 +11,6 @@ import (
 	"encoding/pem"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"runtime"
 
@@ -50,13 +49,13 @@ type KeyPair struct {
 
 // ReadFromFile reads a keypair from files.
 func (kp *KeyPair) ReadFromFile(privateKeyPath string, publicKeyPath string) error {
-	b, err := ioutil.ReadFile(privateKeyPath)
+	b, err := os.ReadFile(privateKeyPath)
 	if err != nil {
 		return err
 	}
 	kp.PrivateKey = b
 
-	b, err = ioutil.ReadFile(publicKeyPath)
+	b, err = os.ReadFile(publicKeyPath)
 	if err != nil {
 		return err
 	}

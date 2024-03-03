@@ -19,9 +19,7 @@ func (c *MockSSHClient) Connect() error {
 func (c *MockSSHClient) Disconnect() {
 	if c.MockDisconnect != nil {
 		c.MockDisconnect()
-		return
 	}
-	return
 }
 
 // Download calls the mocked download.
@@ -68,9 +66,8 @@ func (c *MockSSHClient) WaitForSSH(maxWait time.Duration) error {
 func (c *MockSSHClient) SetSSHPrivateKey(s string) {
 	if c.MockSetSSHPrivateKey != nil {
 		c.MockSetSSHPrivateKey(s)
-		return
 	}
-	return
+
 }
 
 // GetSSHPrivateKey calls the mocked GetSSHPrivateKey
@@ -85,9 +82,8 @@ func (c *MockSSHClient) GetSSHPrivateKey() string {
 func (c *MockSSHClient) SetSSHPassword(s string) {
 	if c.MockSetSSHPassword != nil {
 		c.MockSetSSHPassword(s)
-		return
 	}
-	return
+
 }
 
 // GetSSHPassword calls the mocked GetSSHPassword
