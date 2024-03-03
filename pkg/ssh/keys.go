@@ -105,11 +105,15 @@ func (kp *KeyPair) WriteToFile(privateKeyPath string, publicKeyPath string) erro
 }
 
 // Fingerprint calculates the fingerprint of the public key
-func (kp *KeyPair) Fingerprint() string {
+func (kp *KeyPair) Fingerprint() (string, error) {
 	b, _ := base64.StdEncoding.DecodeString(string(kp.PublicKey))
 	h := md5.New()
 
-	io.WriteString(h, string(b))
+	_, err := io.WriteString(h, string(b))
 
-	return fmt.Sprintf("%x", h.Sum(nil))
+	if err != nil {
+		return "", err
+	}
+
+	return fmt.Sprintf("%x", h.Sum(nil)), nil
 }

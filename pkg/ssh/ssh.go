@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"net"
 	"os"
 	"path"
@@ -217,7 +218,10 @@ func (client *SSHClient) keepAlive() {
 		select {
 		case <-t.C:
 			// send a keep alive request on the underlying channel
-			client.cryptoClient.Conn.SendRequest("libretto-ssh", true, nil)
+			_, _, err := client.cryptoClient.Conn.SendRequest("libretto-ssh", true, nil)
+			if err != nil {
+				return
+			}
 		case <-client.close:
 			// client is disconnecting, close it
 			return
@@ -242,14 +246,22 @@ func (client *SSHClient) Disconnect() {
 
 // Download downloads a file via SSH (SCP)
 func (client *SSHClient) Download(dst io.WriteCloser, remotePath string) error {
-	defer dst.Close()
+	defer func() {
+		if err := dst.Close(); err != nil {
+			log.Println(err)
+		}
+	}()
 
 	session, err := client.cryptoClient.NewSession()
 	if err != nil {
 		return err
 	}
 
-	defer session.Close()
+	defer func() {
+		if err := session.Close(); err != nil {
+			log.Println(err)
+		}
+	}()
 
 	ackPipe, err := session.StdinPipe()
 	if err != nil {
@@ -270,7 +282,11 @@ func (client *SSHClient) Download(dst io.WriteCloser, remotePath string) error {
 	go func() {
 		defer wg.Done()
 
-		defer ackPipe.Close()
+		defer func() {
+			if err := ackPipe.Close(); err != nil {
+				log.Println(err)
+			}
+		}()
 
 		// 3 ack messages; 1 to initiate, 1 for the message, 1 for the data
 		// https://blogs.oracle.com/janp/entry/how_the_scp_protocol_works
@@ -343,7 +359,11 @@ func (client *SSHClient) Run(command string, stdout io.Writer, stderr io.Writer)
 		return err
 	}
 
-	defer session.Close()
+	defer func() {
+		if err := session.Close(); err != nil {
+			log.Println(err)
+		}
+	}()
 
 	session.Stdout = stdout
 	session.Stderr = stderr
@@ -375,7 +395,11 @@ func (client *SSHClient) Upload(src io.Reader, dst string, mode uint32) error {
 		return err
 	}
 
-	defer session.Close()
+	defer func() {
+		if err := session.Close(); err != nil {
+			log.Println(err)
+		}
+	}()
 
 	w, err := session.StdinPipe()
 	if err != nil {
@@ -390,7 +414,11 @@ func (client *SSHClient) Upload(src io.Reader, dst string, mode uint32) error {
 	wg.Add(2)
 
 	go func() {
-		defer w.Close()
+		defer func() {
+			if err := w.Close(); err != nil {
+				log.Println(err)
+			}
+		}()
 		defer wg.Done()
 
 		// Signals to the SSH receiver that content is being passed.
