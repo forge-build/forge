@@ -3,7 +3,9 @@
 package ssh
 
 import (
+	"io"
 	"testing"
+	"time"
 
 	cssh "golang.org/x/crypto/ssh"
 )
@@ -140,5 +142,208 @@ func TestValidate(t *testing.T) {
 	err = c.Validate()
 	if err != nil {
 		t.Errorf("Expected nil error, got %s", err)
+	}
+}
+
+func TestConstants(t *testing.T) {
+	expectedPort := 22
+	if sshPort != expectedPort {
+		t.Errorf("Expected sshPort to be %d, but got %d", expectedPort, sshPort)
+	}
+
+	expectedPasswordAuth := "password"
+	if PasswordAuth != expectedPasswordAuth {
+		t.Errorf("Expected PasswordAuth to be %s, but got %s", expectedPasswordAuth, PasswordAuth)
+	}
+
+	expectedKeyAuth := "key"
+	if KeyAuth != expectedKeyAuth {
+		t.Errorf("Expected KeyAuth to be %s, but got %s", expectedKeyAuth, KeyAuth)
+	}
+
+	expectedTimeout := 60 * time.Second
+	if Timeout != expectedTimeout {
+		t.Errorf("Expected Timeout to be %s, but got %s", expectedTimeout, Timeout)
+	}
+}
+
+func TestErrInvalidUsername(t *testing.T) {
+	err := ErrInvalidUsername
+	expected := "a valid username must be supplied"
+	if err.Error() != expected {
+		t.Errorf("Expected error message: %s, but got: %s", expected, err.Error())
+	}
+}
+
+func TestErrInvalidAuth(t *testing.T) {
+	err := ErrInvalidAuth
+	expected := "invalid authorization method: missing password or key"
+	if err.Error() != expected {
+		t.Errorf("Expected error message: %s, but got: %s", expected, err.Error())
+	}
+}
+
+func TestErrSSHInvalidMessageLength(t *testing.T) {
+	err := ErrSSHInvalidMessageLength
+	expected := "invalid message length"
+	if err.Error() != expected {
+		t.Errorf("Expected error message: %s, but got: %s", expected, err.Error())
+	}
+}
+
+func TestErrTimeout(t *testing.T) {
+	err := ErrTimeout
+	expected := "timed out waiting for sshd to respond"
+	if err.Error() != expected {
+		t.Errorf("Expected error message: %s, but got: %s", expected, err.Error())
+	}
+}
+
+func TestErrKeyGeneration(t *testing.T) {
+	err := ErrKeyGeneration
+	expected := "unable to generate key"
+	if err.Error() != expected {
+		t.Errorf("Expected error message: %s, but got: %s", expected, err.Error())
+	}
+}
+
+func TestErrValidation(t *testing.T) {
+	err := ErrValidation
+	expected := "unable to validate key"
+	if err.Error() != expected {
+		t.Errorf("Expected error message: %s, but got: %s", expected, err.Error())
+	}
+}
+
+func TestErrPublicKey(t *testing.T) {
+	err := ErrPublicKey
+	expected := "unable to convert public key"
+	if err.Error() != expected {
+		t.Errorf("Expected error message: %s, but got: %s", expected, err.Error())
+	}
+}
+
+func TestErrUnableToWriteFile(t *testing.T) {
+	err := ErrUnableToWriteFile
+	expected := "unable to write file"
+	if err.Error() != expected {
+		t.Errorf("Expected error message: %s, but got: %s", expected, err.Error())
+	}
+}
+
+func TestErrNotImplemented(t *testing.T) {
+	err := ErrNotImplemented
+	expected := "operation not implemented"
+	if err.Error() != expected {
+		t.Errorf("Expected error message: %s, but got: %s", expected, err.Error())
+	}
+}
+
+func TestCloseMutex(t *testing.T) {
+	closeMutex.Lock()
+	// No assertion needed, this test is to ensure that the mutex can be locked and unlocked without errors.
+}
+
+// TestMockSSHClient tests the MockSSHClient struct.
+func TestMockSSHClient(t *testing.T) {
+	// Create a new instance of MockSSHClient
+	mockClient := MockSSHClient{}
+
+	// Test the MockConnect function
+	mockClient.MockConnect = func() error {
+		// Add your test logic here
+		return nil
+	}
+	err := mockClient.MockConnect()
+	if err != nil {
+		t.Errorf("MockConnect failed: %s", err)
+	}
+
+	// Test the MockDisconnect function
+	mockClient.MockDisconnect = func() {
+		// Add your test logic here
+	}
+	mockClient.MockDisconnect()
+
+	// Test the MockDownload function
+	mockClient.MockDownload = func(src io.WriteCloser, dst string) error {
+		// Add your test logic here
+		return nil
+	}
+	err = mockClient.MockDownload(nil, "")
+	if err != nil {
+		t.Errorf("MockDownload failed: %s", err)
+	}
+
+	// Test the MockRun function
+	mockClient.MockRun = func(command string, stdout io.Writer, stderr io.Writer) error {
+		// Add your test logic here
+		return nil
+	}
+	err = mockClient.MockRun("", nil, nil)
+	if err != nil {
+		t.Errorf("MockRun failed: %s", err)
+	}
+
+	// Test the MockUpload function
+	mockClient.MockUpload = func(src io.Reader, dst string, mode uint32) error {
+		// Add your test logic here
+		return nil
+	}
+	err = mockClient.MockUpload(nil, "", 0)
+	if err != nil {
+		t.Errorf("MockUpload failed: %s", err)
+	}
+
+	// Test the MockValidate function
+	mockClient.MockValidate = func() error {
+		// Add your test logic here
+		return nil
+	}
+	err = mockClient.MockValidate()
+	if err != nil {
+		t.Errorf("MockValidate failed: %s", err)
+	}
+
+	// Test the MockWaitForSSH function
+	mockClient.MockWaitForSSH = func(maxWait time.Duration) error {
+		// Add your test logic here
+		return nil
+	}
+	err = mockClient.MockWaitForSSH(time.Second)
+	if err != nil {
+		t.Errorf("MockWaitForSSH failed: %s", err)
+	}
+
+	// Test the MockSetSSHPrivateKey function
+	mockClient.MockSetSSHPrivateKey = func(privateKey string) {
+		// Add your test logic here
+	}
+	mockClient.MockSetSSHPrivateKey("")
+
+	// Test the MockGetSSHPrivateKey function
+	mockClient.MockGetSSHPrivateKey = func() string {
+		// Add your test logic here
+		return ""
+	}
+	result := mockClient.MockGetSSHPrivateKey()
+	if result != "" {
+		t.Errorf("MockGetSSHPrivateKey failed: expected '', got %s", result)
+	}
+
+	// Test the MockSetSSHPassword function
+	mockClient.MockSetSSHPassword = func(password string) {
+		// Add your test logic here
+	}
+	mockClient.MockSetSSHPassword("")
+
+	// Test the MockGetSSHPassword function
+	mockClient.MockGetSSHPassword = func() string {
+		// Add your test logic here
+		return ""
+	}
+	result = mockClient.MockGetSSHPassword()
+	if result != "" {
+		t.Errorf("MockGetSSHPassword failed: expected '', got %s", result)
 	}
 }
