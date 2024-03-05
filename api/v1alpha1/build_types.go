@@ -17,6 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	builderror "github.com/forge-build/forge/errors"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -38,10 +39,20 @@ type BuildSpec struct {
 type BuildStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
+	// FailureReason indicates that there is a fatal problem reconciling the
+	// state, and will be set to a token value suitable for
+	// programmatic interpretation.
+	// +optional
+	FailureReason *builderror.BuildStatusError `json:"failureReason,omitempty"`
+
+	// FailureMessage indicates that there is a fatal problem reconciling the
+	// state, and will be set to a descriptive error message.
+	// +optional
+	FailureMessage *string `json:"failureMessage,omitempty"`
 
 	// MachineReady is the state of the machine, which will be seted to true after it successfully in running state
 	//+optional
-	MachineReady *bool `json:"machineReady,omitempty"`
+	InfrastructureReady *bool `json:"infrastructureReady,omitempty"`
 
 	// Connected describes if the connection to the underlying infrastructure machine has been established
 	//+optional
