@@ -231,7 +231,7 @@ func (client *SSHClient) keepAlive() {
 		select {
 		case <-t.C:
 			// send a keep alive request on the underlying channel
-			_, _, err := client.cryptoClient.Conn.SendRequest("libretto-ssh", true, nil)
+			_, _, err := client.cryptoClient.Conn.SendRequest("forge-ssh", true, nil)
 			if err != nil {
 				return
 			}
