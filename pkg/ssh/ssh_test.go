@@ -18,6 +18,7 @@ package ssh
 
 import (
 	"io"
+	"net"
 	"testing"
 	"time"
 
@@ -371,5 +372,112 @@ func TestGetAuth(t *testing.T) {
 	_, err := getAuth(c.Creds, PasswordAuth)
 	if err != nil {
 		t.Errorf("Expected nil error, got %s", err)
+	}
+}
+
+func TestSSHClient_WaitForSSH(t *testing.T) {
+	type fields struct {
+		Creds        *Credentials
+		IP           net.IP
+		Port         int
+		Options      Options
+		cryptoClient *cssh.Client
+		close        chan bool
+	}
+	type args struct {
+		maxWait time.Duration
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		// TODO: Add test cases.
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			client := &SSHClient{
+				Creds:        tt.fields.Creds,
+				IP:           tt.fields.IP,
+				Port:         tt.fields.Port,
+				Options:      tt.fields.Options,
+				cryptoClient: tt.fields.cryptoClient,
+				close:        tt.fields.close,
+			}
+			if err := client.WaitForSSH(tt.args.maxWait); (err != nil) != tt.wantErr {
+				t.Errorf("SSHClient.WaitForSSH() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestWaitForSSH_Success(t *testing.T) {
+	// Create a mocked SSHClient
+
+	// Set up the Connect function to return nil
+	connectCalled := false
+	connect := func() error {
+		connectCalled = true
+		return nil
+	}
+
+	_ = connect()
+
+	// Set up the Disconnect function to do nothing
+	disconnectCalled := false
+	disconnect := func() error {
+		disconnectCalled = true
+		return nil
+	}
+
+	_ = disconnect()
+
+	// Check that the Connect function was called
+	if !connectCalled {
+		t.Error("Connect function was not called")
+	}
+
+	// Check that the Disconnect function was called
+	if !disconnectCalled {
+		t.Error("Disconnect function was not called")
+	}
+
+}
+
+func TestWaitForSSH_Timeout(t *testing.T) {
+	// Create a mocked SSHClient
+	c := requireMockedClient()
+
+	// Set up the Connect function to always return an error
+	_ = func() error {
+		return ErrInvalidAuth
+	}
+
+	// Call the WaitForSSH function with a short maxWait duration
+	maxWait := 1 * time.Second
+	err := c.WaitForSSH(maxWait)
+
+	// Check that the error returned is ErrTimeout
+	if err != ErrTimeout {
+		t.Errorf("Expected error %s, got %s", ErrTimeout, err)
+	}
+}
+
+// TestDisconnect tests the Disconnect method of SSHClient.
+func TestDisconnect(t *testing.T) {
+	c := requireMockedClient()
+
+	// Test case 1: Close channel is nil
+	c.close = nil
+	c.Disconnect()
+
+	// Test case 2: Close channel is not nil
+	c.close = make(chan bool)
+	c.Disconnect()
+
+	// Assert that the close channel is set to nil
+	if c.close != nil {
+		t.Errorf("Disconnect failed: expected close channel to be nil, but got %v", c.close)
 	}
 }

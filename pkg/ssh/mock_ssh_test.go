@@ -193,3 +193,60 @@ func TestMockSSHClient_GetSSHPrivateKey(t *testing.T) {
 		t.Errorf("Expected private key %s, got %s", expectedPrivateKey, privateKey)
 	}
 }
+func TestMockSSHClient_Download(t *testing.T) {
+	// Test case 1: MockDownload is nil
+	c := &MockSSHClient{}
+	src := &mockWriteCloser{}
+	dst := "test.txt"
+	err := c.Download(src, dst)
+	if err != ErrNotImplemented {
+		t.Errorf("Expected error %v, got %v", ErrNotImplemented, err)
+	}
+
+	// Test case 2: MockDownload is defined
+	expectedError := errors.New("download error")
+	c.MockDownload = func(src io.WriteCloser, dst string) error {
+		return expectedError
+	}
+	err = c.Download(src, dst)
+	if err != expectedError {
+		t.Errorf("Expected error %v, got %v", expectedError, err)
+	}
+}
+
+type mockWriteCloser struct{}
+
+func (m *mockWriteCloser) Write(p []byte) (n int, err error) {
+	return len(p), nil
+}
+
+func (m *mockWriteCloser) Close() error {
+	return nil
+}
+func TestMockSSHClient_Upload(t *testing.T) {
+	// Test case 1: MockUpload is nil
+	c := &MockSSHClient{}
+	src := &mockReader{}
+	dst := "test.txt"
+	mode := uint32(0644)
+	err := c.Upload(src, dst, mode)
+	if err != ErrNotImplemented {
+		t.Errorf("Expected error %v, got %v", ErrNotImplemented, err)
+	}
+
+	// Test case 2: MockUpload is defined
+	expectedError := errors.New("upload error")
+	c.MockUpload = func(src io.Reader, dst string, mode uint32) error {
+		return expectedError
+	}
+	err = c.Upload(src, dst, mode)
+	if err != expectedError {
+		t.Errorf("Expected error %v, got %v", expectedError, err)
+	}
+}
+
+type mockReader struct{}
+
+func (m *mockReader) Read(p []byte) (n int, err error) {
+	return len(p), nil
+}
