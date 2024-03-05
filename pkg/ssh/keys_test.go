@@ -3,18 +3,14 @@ package ssh
 import (
 	"bytes"
 	"crypto/md5"
-	"crypto/rsa"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/pem"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"runtime"
 	"testing"
-
-	"golang.org/x/crypto/ssh"
 )
 
 func TestKeyPairFingerprint(t *testing.T) {
@@ -158,47 +154,4 @@ func TestNewKeyPair(t *testing.T) {
 	if err := priv.Validate(); err != nil {
 		t.Errorf("Private key validation failed: %s", err)
 	}
-
-	// Validate the public key
-	pubKey, _, _, _, err := ssh.ParseAuthorizedKey(keyPair.PublicKey)
-	if err != nil {
-		t.Errorf("Error parsing public key: %s", err)
-	}
-	fmt.Println("public key: ", pubKey.Marshal())
-
-	sshPub, err := ssh.NewPublicKey(&priv.PublicKey)
-	if err != nil {
-		log.Fatal(err)
-	}
-	sshPubBytes := sshPub.Marshal()
-
-	// Now we can convert it back to PEM format
-	// Remember: if you're reading the public key from a file, you probably
-	// want ssh.ParseAuthorizedKey.
-	parsed, err := ssh.ParsePublicKey(sshPubBytes)
-	if err != nil {
-		log.Fatal(err)
-	}
-	// To get back to an *rsa.PublicKey, we need to first upgrade to the
-	// ssh.CryptoPublicKey interface
-	parsedCryptoKey := parsed.(ssh.CryptoPublicKey)
-
-	// Then, we can call CryptoPublicKey() to get the actual crypto.PublicKey
-	pubCrypto := parsedCryptoKey.CryptoPublicKey()
-
-	// Finally, we can convert back to an *rsa.PublicKey
-	pub := pubCrypto.(*rsa.PublicKey)
-
-	// After this, it's encoding to PEM - same as always
-	encoded := pem.EncodeToMemory(&pem.Block{
-		Type:  "RSA PUBLIC KEY",
-		Bytes: x509.MarshalPKCS1PublicKey(pub),
-	})
-	fmt.Printf("%s", encoded)
-	if bytes.Equal(encoded, pubKey.Marshal()) {
-		fmt.Println("Matching")
-	}
-
-	// t.Error()
-
 }
