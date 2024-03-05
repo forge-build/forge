@@ -15,7 +15,7 @@ const password = "password123"
 func requireMockedClient() SSHClient {
 	c := SSHClient{}
 	c.Creds = &Credentials{}
-	dial = func(p string, a string, c *cssh.ClientConfig) (*cssh.Client, error) {
+	dial = func(_ string, _ string, _ *cssh.ClientConfig) (*cssh.Client, error) {
 		return nil, nil
 	}
 	readPrivateKey = func(path string) (cssh.AuthMethod, error) {
@@ -56,7 +56,7 @@ func TestConnectAuthPrecedence(t *testing.T) {
 		SSHPrivateKey: "/foo",
 	}
 
-	readPrivateKey = func(path string) (cssh.AuthMethod, error) {
+	readPrivateKey = func(_ string) (cssh.AuthMethod, error) {
 		count++
 		return nil, nil
 	}
