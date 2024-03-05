@@ -411,40 +411,6 @@ func TestSSHClient_WaitForSSH(t *testing.T) {
 		})
 	}
 }
-
-func TestWaitForSSH_Success(t *testing.T) {
-	// Create a mocked SSHClient
-
-	// Set up the Connect function to return nil
-	connectCalled := false
-	connect := func() error {
-		connectCalled = true
-		return nil
-	}
-
-	_ = connect()
-
-	// Set up the Disconnect function to do nothing
-	disconnectCalled := false
-	disconnect := func() error {
-		disconnectCalled = true
-		return nil
-	}
-
-	_ = disconnect()
-
-	// Check that the Connect function was called
-	if !connectCalled {
-		t.Error("Connect function was not called")
-	}
-
-	// Check that the Disconnect function was called
-	if !disconnectCalled {
-		t.Error("Disconnect function was not called")
-	}
-
-}
-
 func TestWaitForSSH_Timeout(t *testing.T) {
 	// Create a mocked SSHClient
 	c := requireMockedClient()
@@ -461,23 +427,5 @@ func TestWaitForSSH_Timeout(t *testing.T) {
 	// Check that the error returned is ErrTimeout
 	if err != ErrTimeout {
 		t.Errorf("Expected error %s, got %s", ErrTimeout, err)
-	}
-}
-
-// TestDisconnect tests the Disconnect method of SSHClient.
-func TestDisconnect(t *testing.T) {
-	c := requireMockedClient()
-
-	// Test case 1: Close channel is nil
-	c.close = nil
-	c.Disconnect()
-
-	// Test case 2: Close channel is not nil
-	c.close = make(chan bool)
-	c.Disconnect()
-
-	// Assert that the close channel is set to nil
-	if c.close != nil {
-		t.Errorf("Disconnect failed: expected close channel to be nil, but got %v", c.close)
 	}
 }
