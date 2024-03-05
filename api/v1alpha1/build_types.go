@@ -17,9 +17,10 @@ limitations under the License.
 package v1alpha1
 
 import (
-	builderror "github.com/forge-build/forge/errors"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	builderror "github.com/forge-build/forge/pkg/errors"
 )
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
@@ -72,8 +73,10 @@ type BuildStatus struct {
 	// once all provisioners has finished successfully this will be true
 	//+optional
 	ProvisionersReady *bool `json:"provisionersReady,omitempty"`
-	// Build Phase which can be
+
+	// Build Phase which is used to track the state of the build process
 	Phase BuildPhase `json:"phase,omitempty"`
+
 	// Ready is the state of the build process, true if machine image is ready, false if not
 	//+optional
 	Ready *bool `json:"ready,omitempty"`

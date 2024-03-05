@@ -112,7 +112,8 @@ spec:
                   be seted to true after it successfully in running state
                 type: boolean
               phase:
-                description: Build Phase which can be
+                description: Build Phase which is used to track the state of the build
+                  process
                 type: string
               provisionersReady:
                 description: |-
