@@ -89,7 +89,6 @@ spec:
             - infrastructureRef
             type: object
           status:
-            description: BuildStatus defines the observed state of Build
             properties:
               connected:
                 description: Connected describes if the connection to the underlying
@@ -112,6 +111,9 @@ spec:
                 description: MachineReady is the state of the machine, which will
                   be seted to true after it successfully in running state
                 type: boolean
+              phase:
+                description: Build Phase which can be
+                type: string
               provisionersReady:
                 description: |-
                   ProvisionersReady describes the state of provisioners for the Build

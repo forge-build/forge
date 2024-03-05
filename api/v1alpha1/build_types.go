@@ -36,6 +36,16 @@ type BuildSpec struct {
 }
 
 // BuildStatus defines the observed state of Build
+type BuildPhase string
+
+const (
+	PhasePending     BuildPhase = "Pending"
+	PhaseBuilding    BuildPhase = "Building"
+	PhaseTerminating BuildPhase = "Terminating"
+	PhaseCompleted   BuildPhase = "Completed"
+	PhaseFailed      BuildPhase = "Failed"
+)
+
 type BuildStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
@@ -62,7 +72,8 @@ type BuildStatus struct {
 	// once all provisioners has finished successfully this will be true
 	//+optional
 	ProvisionersReady *bool `json:"provisionersReady,omitempty"`
-
+	// Build Phase which can be
+	Phase BuildPhase `json:"phase,omitempty"`
 	// Ready is the state of the build process, true if machine image is ready, false if not
 	//+optional
 	Ready *bool `json:"ready,omitempty"`
