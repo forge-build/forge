@@ -23,3 +23,8 @@ cover.out
 go.work
 .idea
 bin/
+
+# Vs code files
+.vscode/
+.vscode/*
+./vscode/settings.json
