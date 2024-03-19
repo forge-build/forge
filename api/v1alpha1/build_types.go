@@ -28,8 +28,6 @@ import (
 
 // BuildSpec defines the desired state of Build
 type BuildSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
 
 	// InfrastructureRef is a reference to the infrastructure object which contains the types of machines to build.
 	// for e.g infrastructureRef: {kind: "AWSBuild", name: "ubuntu-2204"}
