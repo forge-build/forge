@@ -27,7 +27,7 @@ import (
 
 var (
 	// GroupVersion is group version used to register these objects
-	GroupVersion = schema.GroupVersion{Group: "image.forge.build", Version: "v1alpha1"}
+	GroupVersion = schema.GroupVersion{Group: "forge.build", Version: "v1alpha1"}
 
 	// schemeBuilder is used to add go types to the GroupVersionKind scheme.
 	schemeBuilder = runtime.NewSchemeBuilder(addKnownTypes)

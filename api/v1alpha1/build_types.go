@@ -19,33 +19,105 @@ package v1alpha1
 import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
+	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 
 	builderror "github.com/forge-build/forge/pkg/errors"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
+const (
+	// BuildFinalizer is the finalizer used by the Build controller to
+	// cleanup the build resources when a Build is being deleted.
+	BuildFinalizer = "build.forge.build"
+
+	// ClusterKind represents the Kind of Cluster.
+	buildKind = "Build"
+)
 
 // BuildSpec defines the desired state of Build
 type BuildSpec struct {
+	// Paused can be used to prevent controllers from processing the Cluster and all its associated objects.
+	// +optional
+	Paused bool `json:"paused,omitempty"`
+
+	// Connector is the connector to the infrastructure machine
+	// e.g., connector: {type: "ssh", credentials: {name: "aws-credentials", namespace: "default"}}
+	// +kubebuilder:validation:Required
+	Connector ConnectorSpec `json:"connector"`
 
 	// InfrastructureRef is a reference to the infrastructure object which contains the types of machines to build.
-	// for e.g infrastructureRef: {kind: "AWSBuild", name: "ubuntu-2204"}
+	// e.g. infrastructureRef: {kind: "AWSBuild", name: "ubuntu-2204"}
+	// +kubebuilder:validation:Required
 	InfrastructureRef *corev1.ObjectReference `json:"infrastructureRef"`
+
+	// Provisioners is a list of provisioners to run on the infrastructure machine
+	// +optional
+	Provisioners []ProvisionerSpec `json:"provisioners,omitempty"`
+
+	// DeleteCascade is a flag to specify whether the built image(s)
+	// going to be cleaned up when the build is deleted.
+	// +optional
+	DeleteCascade bool `json:"deleteCascade,omitempty"`
 }
 
-// BuildStatus defines the observed state of Build
+// ConnectorSpec defines the connector to the infrastructure machine
+type ConnectorSpec struct {
+	// Type is the type of connector to the infrastructure machine.
+	// e.g., type: "ssh"
+	Type string `json:"type"`
+
+	// Credentials is a reference to the secret containing the credentials to connect to the infrastructure machine
+	// The secret should contain the following
+	// - username
+	// - password and/or privateKey
+	// - host
+	Credentials *corev1.SecretReference `json:"credentials,omitempty"`
+}
+
+// ProvisionerSpec defines the provisioner to run on the infrastructure machine
+type ProvisionerSpec struct {
+	// Type is the type of provisioner to run on the infrastructure machine
+	// e.g., type: "builtin" or type: "external"
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Enum=built-in/shell;external
+	Type ProvisionerType `json:"type"`
+
+	// AllowFail is a flag to allow the provisioner to fail
+	// +optional
+	AllowFail bool `json:"allowFail,omitempty"`
+
+	// Run is the command to run on the infrastructure machine
+	// +optional
+	Run *string `json:"run,omitempty"`
+
+	// Ref is a reference to the provisioner object which contains the types of provisioners to run.
+	Ref *corev1.ObjectReference `json:"ref,omitempty"`
+}
+
+type ProvisionerType string
+
+const (
+	ProvisionerTypeShell    ProvisionerType = "built-in/shell"
+	ProvisionerTypeExternal                 = "external"
+)
+
+// BuildPhase BuildStatus defines the observed state of Build
 type BuildPhase string
 
 const (
-	PhasePending     BuildPhase = "Pending"
-	PhaseBuilding    BuildPhase = "Building"
-	PhaseTerminating BuildPhase = "Terminating"
-	PhaseCompleted   BuildPhase = "Completed"
-	PhaseFailed      BuildPhase = "Failed"
+	BuildPhasePending     BuildPhase = "Pending"
+	BuildPhaseBuilding    BuildPhase = "Building"
+	BuildPhaseTerminating BuildPhase = "Terminating"
+	BuildPhaseCompleted   BuildPhase = "Completed"
+	BuildPhaseFailed      BuildPhase = "Failed"
+	BuildPhaseUnknown     BuildPhase = "Unknown"
 )
 
 type BuildStatus struct {
+	// FailureDomains is a slice of failure domain objects synced from the infrastructure provider.
+	// +optional
+	FailureDomains FailureDomains `json:"failureDomains,omitempty"`
+
 	// FailureReason indicates that there is a fatal problem reconciling the
 	// state, and will be set to a token value suitable for
 	// programmatic interpretation.
@@ -57,25 +129,31 @@ type BuildStatus struct {
 	// +optional
 	FailureMessage *string `json:"failureMessage,omitempty"`
 
-	// MachineReady is the state of the machine, which will be seted to true after it successfully in running state
+	// Conditions define the current service state of the cluster.
+	// +optional
+	Conditions clusterv1.Conditions `json:"conditions,omitempty"`
+
+	// InfrastructureReady is the state of the machine, which will be seted to true after it successfully in running state
 	//+optional
-	InfrastructureReady *bool `json:"infrastructureReady,omitempty"`
+	InfrastructureReady bool `json:"infrastructureReady,omitempty"`
 
 	// Connected describes if the connection to the underlying infrastructure machine has been established
 	//+optional
-	Connected *bool `json:"connected,omitempty"`
+	Connected bool `json:"connected,omitempty"`
 
 	// ProvisionersReady describes the state of provisioners for the Build
-	// once all provisioners has finished successfully this will be true
+	// once all provisioners have finished successfully, this will be true
 	//+optional
-	ProvisionersReady *bool `json:"provisionersReady,omitempty"`
+	ProvisionersReady bool `json:"provisionersReady,omitempty"`
 
 	// Build Phase which is used to track the state of the build process
-	Phase BuildPhase `json:"phase,omitempty"`
+	// E.g. Pending, Building, Terminating, Failed etc.
+	//+optional
+	Phase string `json:"phase,omitempty"`
 
 	// Ready is the state of the build process, true if machine image is ready, false if not
 	//+optional
-	Ready *bool `json:"ready,omitempty"`
+	Ready bool `json:"ready,omitempty"`
 }
 
 //+kubebuilder:object:root=true
@@ -99,6 +177,75 @@ type BuildList struct {
 	Items           []Build `json:"items"`
 }
 
+// GetConditions returns the set of conditions for this object.
+func (c *Build) GetConditions() clusterv1.Conditions {
+	return c.Status.Conditions
+}
+
+// SetConditions sets the conditions on this object.
+func (c *Build) SetConditions(conditions clusterv1.Conditions) {
+	c.Status.Conditions = conditions
+}
+
 func init() {
 	objectTypes = append(objectTypes, &Build{}, &BuildList{})
+}
+
+// FailureDomains is a slice of FailureDomains.
+type FailureDomains map[string]FailureDomainSpec
+
+// FilterControlPlane returns a FailureDomain slice containing only the domains suitable to be used
+// for control plane nodes.
+func (in FailureDomains) FilterControlPlane() FailureDomains {
+	res := make(FailureDomains)
+	for id, spec := range in {
+		if spec.Infrastructure {
+			res[id] = spec
+		}
+	}
+	return res
+}
+
+// GetIDs returns a slice containing the ids for failure domains.
+func (in FailureDomains) GetIDs() []*string {
+	ids := make([]*string, 0, len(in))
+	for id := range in {
+		ids = append(ids, ptr.To(id))
+	}
+	return ids
+}
+
+// FailureDomainSpec is the Schema for Forge API failure domains.
+// It allows controllers to understand how many failure domains a build can optionally span across.
+type FailureDomainSpec struct {
+	// Infrastructure determines if this failure domain is suitable for use by infrastructure machines.
+	// +optional
+	Infrastructure bool `json:"controlPlane,omitempty"`
+
+	// Attributes is a free form map of attributes an infrastructure provider might use or require.
+	// +optional
+	Attributes map[string]string `json:"attributes,omitempty"`
+}
+
+// ANCHOR_END: ClusterStatus
+
+// SetTypedPhase sets the Phase field to the string representation of ClusterPhase.
+func (c *BuildStatus) SetTypedPhase(p BuildPhase) {
+	c.Phase = string(p)
+}
+
+// GetTypedPhase attempts to parse the Phase field and return
+// the typed ClusterPhase representation as described in `machine_phase_types.go`.
+func (c *BuildStatus) GetTypedPhase() BuildPhase {
+	switch phase := BuildPhase(c.Phase); phase {
+	case
+		BuildPhasePending,
+		BuildPhaseBuilding,
+		BuildPhaseTerminating,
+		BuildPhaseCompleted,
+		BuildPhaseFailed:
+		return phase
+	default:
+		return BuildPhaseUnknown
+	}
 }

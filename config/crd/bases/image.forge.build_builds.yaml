@@ -3,7 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.14.0
+    controller-gen.kubebuilder.io/version: v0.16.3
   name: builds.image.forge.build
 spec:
   group: image.forge.build
@@ -39,10 +39,46 @@ spec:
           spec:
             description: BuildSpec defines the desired state of Build
             properties:
+              connector:
+                description: |-
+                  Connector is the connector to the infrastructure machine
+                  e.g., connector: {type: "ssh", credentials: {name: "aws-credentials", namespace: "default"}}
+                properties:
+                  credentials:
+                    description: |-
+                      Credentials is a reference to the secret containing the credentials to connect to the infrastructure machine
+                      The secret should contain the following
+                      - username
+                      - password and/or privateKey
+                      - host
+                    properties:
+                      name:
+                        description: name is unique within a namespace to reference
+                          a secret resource.
+                        type: string
+                      namespace:
+                        description: namespace defines the space within which the
+                          secret name must be unique.
+                        type: string
+                    type: object
+                    x-kubernetes-map-type: atomic
+                  type:
+                    description: |-
+                      Type is the type of connector to the infrastructure machine.
+                      e.g., type: "ssh"
+                    type: string
+                required:
+                - type
+                type: object
+              deleteCascade:
+                description: |-
+                  DeleteCascade is a flag to specify whether the built image(s)
+                  going to be cleaned up when the build is deleted.
+                type: boolean
               infrastructureRef:
                 description: |-
                   InfrastructureRef is a reference to the infrastructure object which contains the types of machines to build.
-                  for e.g infrastructureRef: {kind: "AWSBuild", name: "ubuntu-2204"}
+                  e.g. infrastructureRef: {kind: "AWSBuild", name: "ubuntu-2204"}
                 properties:
                   apiVersion:
                     description: API version of the referent.
@@ -56,7 +92,6 @@ spec:
                       the event) or if no container name is specified "spec.containers[2]" (container with
                       index 2 in this pod). This syntax is chosen only to have some well-defined way of
                       referencing a part of an object.
-                      TODO: this design is not final and this field is subject to change in the future.
                     type: string
                   kind:
                     description: |-
@@ -85,15 +120,156 @@ spec:
                     type: string
                 type: object
                 x-kubernetes-map-type: atomic
+              paused:
+                description: Paused can be used to prevent controllers from processing
+                  the Cluster and all its associated objects.
+                type: boolean
+              provisioners:
+                description: Provisioners is a list of provisioners to run on the
+                  infrastructure machine
+                items:
+                  description: ProvisionerSpec defines the provisioner to run on the
+                    infrastructure machine
+                  properties:
+                    allowFail:
+                      description: AllowFail is a flag to allow the provisioner to
+                        fail
+                      type: boolean
+                    ref:
+                      description: Ref is a reference to the provisioner object which
+                        contains the types of provisioners to run.
+                      properties:
+                        apiVersion:
+                          description: API version of the referent.
+                          type: string
+                        fieldPath:
+                          description: |-
+                            If referring to a piece of an object instead of an entire object, this string
+                            should contain a valid JSON/Go field access statement, such as desiredState.manifest.containers[2].
+                            For example, if the object reference is to a container within a pod, this would take on a value like:
+                            "spec.containers{name}" (where "name" refers to the name of the container that triggered
+                            the event) or if no container name is specified "spec.containers[2]" (container with
+                            index 2 in this pod). This syntax is chosen only to have some well-defined way of
+                            referencing a part of an object.
+                          type: string
+                        kind:
+                          description: |-
+                            Kind of the referent.
+                            More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+                          type: string
+                        name:
+                          description: |-
+                            Name of the referent.
+                            More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                          type: string
+                        namespace:
+                          description: |-
+                            Namespace of the referent.
+                            More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/
+                          type: string
+                        resourceVersion:
+                          description: |-
+                            Specific resourceVersion to which this reference is made, if any.
+                            More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#concurrency-control-and-consistency
+                          type: string
+                        uid:
+                          description: |-
+                            UID of the referent.
+                            More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#uids
+                          type: string
+                      type: object
+                      x-kubernetes-map-type: atomic
+                    run:
+                      description: Run is the command to run on the infrastructure
+                        machine
+                      type: string
+                    type:
+                      description: |-
+                        Type is the type of provisioner to run on the infrastructure machine
+                        e.g., type: "builtin" or type: "external"
+                      enum:
+                      - built-in/shell
+                      - external
+                      type: string
+                  required:
+                  - type
+                  type: object
+                type: array
             required:
+            - connector
             - infrastructureRef
             type: object
           status:
             properties:
+              conditions:
+                description: Conditions define the current service state of the cluster.
+                items:
+                  description: Condition defines an observation of a Cluster API resource
+                    operational state.
+                  properties:
+                    lastTransitionTime:
+                      description: |-
+                        Last time the condition transitioned from one status to another.
+                        This should be when the underlying condition changed. If that is not known, then using the time when
+                        the API field changed is acceptable.
+                      format: date-time
+                      type: string
+                    message:
+                      description: |-
+                        A human readable message indicating details about the transition.
+                        This field may be empty.
+                      type: string
+                    reason:
+                      description: |-
+                        The reason for the condition's last transition in CamelCase.
+                        The specific API may choose whether or not this field is considered a guaranteed API.
+                        This field may not be empty.
+                      type: string
+                    severity:
+                      description: |-
+                        Severity provides an explicit classification of Reason code, so the users or machines can immediately
+                        understand the current situation and act accordingly.
+                        The Severity field MUST be set only when Status=False.
+                      type: string
+                    status:
+                      description: Status of the condition, one of True, False, Unknown.
+                      type: string
+                    type:
+                      description: |-
+                        Type of condition in CamelCase or in foo.example.com/CamelCase.
+                        Many .condition.type values are consistent across resources like Available, but because arbitrary conditions
+                        can be useful (see .node.status.conditions), the ability to deconflict is important.
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - status
+                  - type
+                  type: object
+                type: array
               connected:
                 description: Connected describes if the connection to the underlying
                   infrastructure machine has been established
                 type: boolean
+              failureDomains:
+                additionalProperties:
+                  description: |-
+                    FailureDomainSpec is the Schema for Forge API failure domains.
+                    It allows controllers to understand how many failure domains a build can optionally span across.
+                  properties:
+                    attributes:
+                      additionalProperties:
+                        type: string
+                      description: Attributes is a free form map of attributes an
+                        infrastructure provider might use or require.
+                      type: object
+                    controlPlane:
+                      description: Infrastructure determines if this failure domain
+                        is suitable for use by infrastructure machines.
+                      type: boolean
+                  type: object
+                description: FailureDomains is a slice of failure domain objects synced
+                  from the infrastructure provider.
+                type: object
               failureMessage:
                 description: |-
                   FailureMessage indicates that there is a fatal problem reconciling the
@@ -106,17 +282,18 @@ spec:
                   programmatic interpretation.
                 type: string
               infrastructureReady:
-                description: MachineReady is the state of the machine, which will
-                  be seted to true after it successfully in running state
+                description: InfrastructureReady is the state of the machine, which
+                  will be seted to true after it successfully in running state
                 type: boolean
               phase:
-                description: Build Phase which is used to track the state of the build
-                  process
+                description: |-
+                  Build Phase which is used to track the state of the build process
+                  E.g. Pending, Building, Terminating, Failed etc.
                 type: string
               provisionersReady:
                 description: |-
                   ProvisionersReady describes the state of provisioners for the Build
-                  once all provisioners has finished successfully this will be true
+                  once all provisioners have finished successfully, this will be true
                 type: boolean
               ready:
                 description: Ready is the state of the build process, true if machine

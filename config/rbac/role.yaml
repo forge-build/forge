@@ -5,7 +5,25 @@ metadata:
   name: manager-role
 rules:
 - apiGroups:
-  - image.forge.build
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - create
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - forge.build
   resources:
   - builds
   verbs:
@@ -17,16 +35,29 @@ rules:
   - update
   - watch
 - apiGroups:
-  - image.forge.build
+  - forge.build
   resources:
   - builds/finalizers
   verbs:
   - update
 - apiGroups:
-  - image.forge.build
+  - forge.build
   resources:
   - builds/status
   verbs:
   - get
   - patch
   - update
+- apiGroups:
+  - infrastructure.forge.build
+  - provisioner.forge.build
+  resources:
+  - '*'
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
