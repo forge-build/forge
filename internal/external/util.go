@@ -18,6 +18,7 @@ package external
 
 import (
 	"context"
+	"strings"
 
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
@@ -204,9 +205,9 @@ func GenerateTemplate(in *GenerateTemplateInput) (*unstructured.Unstructured, er
 	}
 
 	// Set the object Kind and strip the word "Template" if it's a suffix.
-	//if to.GetKind() == "" {
-	//	to.SetKind(strings.TrimSuffix(in.Template.GetKind(), buildv1.TemplateSuffix))
-	//}
+	if to.GetKind() == "" {
+		to.SetKind(strings.TrimSuffix(in.Template.GetKind(), buildv1.TemplateSuffix))
+	}
 	return to, nil
 }
 

@@ -4,10 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"math/rand"
 	"reflect"
 	"strings"
-	"time"
 
 	"github.com/gobuffalo/flect"
 	"github.com/pkg/errors"
@@ -22,7 +20,7 @@ import (
 )
 
 var (
-	rnd = rand.New(rand.NewSource(time.Now().UnixNano())) //nolint:gosec
+	// rnd = rand.New(rand.NewSource(time.Now().UnixNano())) //nolint:gosec
 
 	// ErrNoCluster is returned when the cluster
 	// label could not be found on the object passed in.

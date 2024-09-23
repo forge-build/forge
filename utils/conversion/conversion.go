@@ -19,7 +19,6 @@ package conversion
 
 import (
 	"context"
-	"github.com/forge-build/forge/utils"
 	"math/rand"
 	"sort"
 	"strings"
@@ -42,6 +41,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/conversion"
 
 	buildv1 "github.com/forge-build/forge/api/v1alpha1"
+	"github.com/forge-build/forge/utils"
 )
 
 const (

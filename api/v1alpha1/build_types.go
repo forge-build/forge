@@ -29,9 +29,6 @@ const (
 	// BuildFinalizer is the finalizer used by the Build controller to
 	// cleanup the build resources when a Build is being deleted.
 	BuildFinalizer = "build.forge.build"
-
-	// ClusterKind represents the Kind of Cluster.
-	buildKind = "Build"
 )
 
 // BuildSpec defines the desired state of Build
@@ -98,7 +95,7 @@ type ProvisionerType string
 
 const (
 	ProvisionerTypeShell    ProvisionerType = "built-in/shell"
-	ProvisionerTypeExternal                 = "external"
+	ProvisionerTypeExternal ProvisionerType = "external"
 )
 
 // BuildPhase BuildStatus defines the observed state of Build
@@ -158,6 +155,10 @@ type BuildStatus struct {
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
+//+kubebuilder:resource:path=builds,scope=Namespaced,categories=forge,singular=build
+//+kubebuilder:printcolumn:name="Build",type="string",JSONPath=".metadata.labels['forge\\.build\\.io/build-name']",description="Build"
+//+kubebuilder:printcolumn:name="Machine Ready",type="string",JSONPath=".status.machineReady",description="Machine Ready"
+//+kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.ready",description="Build is ready"
 
 // Build is the Schema for the builds API
 type Build struct {

@@ -18,7 +18,6 @@ package external
 
 import (
 	"fmt"
-	"github.com/forge-build/forge/utils/predicates"
 	"sync"
 
 	"github.com/go-logr/logr"
@@ -29,6 +28,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/source"
+
+	"github.com/forge-build/forge/utils/predicates"
 )
 
 // ObjectTracker is a helper struct to deal when watching external unstructured objects.

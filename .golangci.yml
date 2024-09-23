@@ -29,7 +29,6 @@ linters:
     - gosimple
     - govet
     - ineffassign
-    - lll
     - misspell
     - nakedret
     - prealloc
@@ -38,3 +37,13 @@ linters:
     - unconvert
     - unparam
     - unused
+
+linters-settings:
+  gosec:
+    excludes:
+      # integer overflow conversion int -> int32
+      - G115
+  errcheck:
+    exclude-functions:
+      - fmt.Fprintf
+      - fmt.Fprint

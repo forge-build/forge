@@ -23,3 +23,8 @@ const (
 	// with reconciliation of the object only if this label and a configured value is present.
 	WatchLabel = "cluster.x-k8s.io/watch-filter"
 )
+
+const (
+	// TemplateSuffix is the object kind suffix used by template types.
+	TemplateSuffix = "Template"
+)

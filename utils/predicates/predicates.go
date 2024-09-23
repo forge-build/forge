@@ -1,13 +1,14 @@
 package predicates
 
 import (
-	"github.com/forge-build/forge/utils"
 	"strings"
 
 	"github.com/go-logr/logr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
+
+	"github.com/forge-build/forge/utils"
 )
 
 // ResourceNotPausedAndHasFilterLabel returns a predicate that returns true only if the

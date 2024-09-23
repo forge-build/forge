@@ -16,7 +16,7 @@ limitations under the License.
 
 // Package v1alpha1 contains API Schema definitions for the image v1alpha1 API group
 // +kubebuilder:object:generate=true
-// +groupName=image.forge.build
+// +groupName=forge.build
 package v1alpha1
 
 import (

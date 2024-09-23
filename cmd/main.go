@@ -184,10 +184,8 @@ func setupReconcilers(ctx context.Context, mgr ctrl.Manager) error {
 
 		WatchFilterValue: watchFilterValue,
 	}).SetupWithManager(ctx, mgr, concurrency(buildConcurrency)); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Build")
-		os.Exit(1)
+		return err
 	}
-
 	return nil
 }
 
