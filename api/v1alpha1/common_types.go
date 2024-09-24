@@ -8,7 +8,15 @@ const (
 	// ProviderNameLabel is the label set on components in the provider manifest.
 	// This label allows to easily identify all the components belonging to a provider; the forgectl
 	// tool uses this label for implementing provider's lifecycle operations.
-	ProviderNameLabel = "cluster.x-k8s.io/provider"
+	ProviderNameLabel = "forge.build/provider"
+
+	// ManagedByAnnotation is an annotation that can be applied to InfraBuild resources to signify that
+	// some external system is managing the build infrastructure.
+	//
+	// Provider InfraBuild controllers will ignore resources with this annotation.
+	// An external controller must fulfill the contract of the InfraBuild resource.
+	// External infrastructure providers should ensure that the annotation, once set, cannot be removed.
+	ManagedByAnnotation = "forge.build/managed-by"
 
 	// PausedAnnotation is an annotation that can be applied to any Cluster API
 	// object to prevent a controller from processing a resource.

@@ -156,9 +156,9 @@ type BuildStatus struct {
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 //+kubebuilder:resource:path=builds,scope=Namespaced,categories=forge,singular=build
-//+kubebuilder:printcolumn:name="Build",type="string",JSONPath=".metadata.labels['forge\\.build\\.io/build-name']",description="Build"
-//+kubebuilder:printcolumn:name="Machine Ready",type="string",JSONPath=".status.machineReady",description="Machine Ready"
-//+kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.ready",description="Build is ready"
+//+kubebuilder:printcolumn:name="Infrastructure",type="string",JSONPath=".spec.infrastructureRef.kind",description="Kind of infrastructure"
+//+kubebuilder:printcolumn:name="Connection",type="string",JSONPath=".status.connected",description="Connection"
+//+kubebuilder:printcolumn:name="Phase",type="string",JSONPath=".status.phase",description="Build Phase"
 
 // Build is the Schema for the builds API
 type Build struct {

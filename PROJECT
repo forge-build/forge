@@ -13,7 +13,7 @@ resources:
     namespaced: true
   controller: true
   domain: forge.build
-  group: image
+  group:
   kind: Build
   path: github.com/forge-build/forge/api/v1alpha1
   version: v1alpha1

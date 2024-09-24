@@ -17,17 +17,17 @@ spec:
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
-    - description: Build
-      jsonPath: .metadata.labels['forge\.build\.io/build-name']
-      name: Build
+    - description: Kind of infrastructure
+      jsonPath: .spec.infrastructureRef.kind
+      name: Infrastructure
       type: string
-    - description: Machine Ready
-      jsonPath: .status.machineReady
-      name: Machine Ready
+    - description: Connection
+      jsonPath: .status.connected
+      name: Connection
       type: string
-    - description: Build is ready
-      jsonPath: .status.ready
-      name: Ready
+    - description: Build Phase
+      jsonPath: .status.phase
+      name: Phase
       type: string
     name: v1alpha1
     schema:

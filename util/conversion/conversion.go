@@ -41,13 +41,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/conversion"
 
 	buildv1 "github.com/forge-build/forge/api/v1alpha1"
-	"github.com/forge-build/forge/utils"
+	"github.com/forge-build/forge/util"
 )
 
 const (
 	// DataAnnotation is the annotation that conversion webhooks
 	// use to retain the data in case of down-conversion from the hub.
-	DataAnnotation = "cluster.x-k8s.io/conversion-data"
+	DataAnnotation = "forge.build/conversion-data"
 )
 
 var (
@@ -62,7 +62,7 @@ var (
 func UpdateReferenceAPIContract(ctx context.Context, c client.Client, ref *corev1.ObjectReference) error {
 	gvk := ref.GroupVersionKind()
 
-	metadata, err := utils.GetGVKMetadata(ctx, c, gvk)
+	metadata, err := util.GetGVKMetadata(ctx, c, gvk)
 	if err != nil {
 		return errors.Wrapf(err, "failed to update apiVersion in ref")
 	}
@@ -91,7 +91,7 @@ func getLatestAPIVersionFromContract(metadata metav1.Object) (string, error) {
 	}
 
 	// Pick the latest version in the slice and validate it.
-	kubeVersions := utils.KubeAwareAPIVersions(strings.Split(supportedVersions, "_"))
+	kubeVersions := util.KubeAwareAPIVersions(strings.Split(supportedVersions, "_"))
 	sort.Sort(kubeVersions)
 	return kubeVersions[len(kubeVersions)-1], nil
 }

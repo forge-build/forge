@@ -247,6 +247,16 @@ func IsReady(obj *unstructured.Unstructured) (bool, error) {
 	return ready && found, nil
 }
 
+// IsMachineReady returns true if the Status.MachineReady field on an external object is true.
+func IsMachineReady(obj *unstructured.Unstructured) (bool, error) {
+	ready, found, err := unstructured.NestedBool(obj.Object, "status", "machineReady")
+	if err != nil {
+		return false, errors.Wrapf(err, "failed to determine %v %q readiness",
+			obj.GroupVersionKind(), obj.GetName())
+	}
+	return ready && found, nil
+}
+
 // IsInitialized returns true if the Status.Initialized field on an external object is true.
 func IsInitialized(obj *unstructured.Unstructured) (bool, error) {
 	initialized, found, err := unstructured.NestedBool(obj.Object, "status", "initialized")

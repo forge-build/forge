@@ -49,9 +49,9 @@ import (
 	buildv1 "github.com/forge-build/forge/api/v1alpha1"
 	"github.com/forge-build/forge/internal/external"
 	forgeerrors "github.com/forge-build/forge/pkg/errors"
-	"github.com/forge-build/forge/utils"
-	utilconversion "github.com/forge-build/forge/utils/conversion"
-	"github.com/forge-build/forge/utils/predicates"
+	"github.com/forge-build/forge/util/annotations"
+	utilconversion "github.com/forge-build/forge/util/conversion"
+	"github.com/forge-build/forge/util/predicates"
 )
 
 const (
@@ -119,7 +119,7 @@ func (r *BuildReconciler) Reconcile(ctx context.Context, req ctrl.Request) (_ ct
 	}
 
 	// Return early if the object or Cluster is paused.
-	if utils.IsPaused(build, build) {
+	if annotations.IsPaused(build, build) {
 		r.Logger.Info("Reconciliation is paused for this object")
 		return ctrl.Result{}, nil
 	}
@@ -326,13 +326,13 @@ func (r *BuildReconciler) reconcileInfrastructure(ctx context.Context, build *bu
 		return ctrl.Result{}, nil
 	}
 
-	// Determine if the infrastructure provider is ready.
+	// Determine if the infrastructure provider machine is ready.
 	preReconcileInfrastructureReady := build.Status.InfrastructureReady
-	ready, err := external.IsReady(infraConfig)
+	infraReady, err := external.IsMachineReady(infraConfig)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
-	build.Status.InfrastructureReady = ready
+	build.Status.InfrastructureReady = infraReady
 	// Only record the event if the status has changed
 	if preReconcileInfrastructureReady != build.Status.InfrastructureReady {
 		r.recorder.Eventf(build, corev1.EventTypeNormal, "InfrastructureReady", "Build %s InfrastructureReady is now %t", build.Name, build.Status.InfrastructureReady)
@@ -341,17 +341,40 @@ func (r *BuildReconciler) reconcileInfrastructure(ctx context.Context, build *bu
 	// Report a summary of current status of the infrastructure object defined for this cluster.
 	conditions.SetMirror(build, buildv1.InfrastructureReadyCondition,
 		conditions.UnstructuredGetter(infraConfig),
+		conditions.WithFallbackValue(infraReady, buildv1.WaitingForInfrastructureFallbackReason, buildv1.ConditionSeverityInfo, ""),
+	)
+
+	if !infraReady {
+		log.V(3).Info("Infrastructure provider is not ready yet")
+		return ctrl.Result{}, nil
+	}
+
+	// Determine if the infrastructure provider is ready.
+	preReconcileReady := build.Status.Ready
+	ready, err := external.IsReady(infraConfig)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	build.Status.Ready = ready
+	// Only record the event if the status has changed
+	if preReconcileReady != build.Status.Ready {
+		r.recorder.Eventf(build, corev1.EventTypeNormal, "Ready", "Build %s Ready is now %t", build.Name, build.Status.Ready)
+	}
+
+	// Report a summary of current status of the infrastructure object defined for this build.
+	conditions.SetMirror(build, buildv1.ReadyCondition,
+		conditions.UnstructuredGetter(infraConfig),
 		conditions.WithFallbackValue(ready, buildv1.WaitingForInfrastructureFallbackReason, buildv1.ConditionSeverityInfo, ""),
 	)
 
 	if !ready {
-		log.V(3).Info("Infrastructure provider is not ready yet")
+		log.V(3).Info("build is not ready yet")
 		return ctrl.Result{}, nil
 	}
 
 	// Get and parse Status.FailureDomains from the infrastructure provider.
 	failureDomains := buildv1.FailureDomains{}
-	if err := utils.UnstructuredUnmarshalField(infraConfig, &failureDomains, "status", "failureDomains"); err != nil && err != utils.ErrUnstructuredFieldNotFound {
+	if err := util.UnstructuredUnmarshalField(infraConfig, &failureDomains, "status", "failureDomains"); err != nil && err != util.ErrUnstructuredFieldNotFound {
 		return ctrl.Result{}, errors.Wrapf(err, "failed to retrieve Status.FailureDomains from infrastructure provider for Build %q in namespace %q",
 			build.Name, build.Namespace)
 	}
@@ -383,7 +406,7 @@ func (r *BuildReconciler) reconcileExternal(ctx context.Context, build *buildv1.
 	}
 
 	// if external ref is paused, return error.
-	if utils.IsPaused(build, obj) {
+	if annotations.IsPaused(build, obj) {
 		log.V(3).Info("External object referenced is paused")
 		return external.ReconcileOutput{Paused: true}, nil
 	}

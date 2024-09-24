@@ -29,7 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
-	"github.com/forge-build/forge/utils/predicates"
+	"github.com/forge-build/forge/util/predicates"
 )
 
 // ObjectTracker is a helper struct to deal when watching external unstructured objects.

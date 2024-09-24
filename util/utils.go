@@ -1,4 +1,4 @@
-package utils
+package util
 
 import (
 	"context"
@@ -116,6 +116,38 @@ func GetGVKMetadata(ctx context.Context, c client.Client, gvk schema.GroupVersio
 // the naming conventions in the contract.
 func CalculateCRDName(group, kind string) string {
 	return fmt.Sprintf("%s.%s", flect.Pluralize(strings.ToLower(kind)), group)
+}
+
+// GetOwnerBuild returns the Build object owning the current resource.
+func GetOwnerBuild(ctx context.Context, c client.Client, obj metav1.ObjectMeta) (*buildv1.Build, error) {
+	for _, ref := range obj.GetOwnerReferences() {
+		if ref.Kind != "Build" {
+			continue
+		}
+		gv, err := schema.ParseGroupVersion(ref.APIVersion)
+		if err != nil {
+			return nil, errors.WithStack(err)
+		}
+		if gv.Group == buildv1.GroupVersion.Group {
+			return GetBuildByName(ctx, c, obj.Namespace, ref.Name)
+		}
+	}
+	return nil, nil
+}
+
+// GetBuildByName finds and return a Build object using the specified params.
+func GetBuildByName(ctx context.Context, c client.Client, namespace, name string) (*buildv1.Build, error) {
+	build := &buildv1.Build{}
+	key := client.ObjectKey{
+		Namespace: namespace,
+		Name:      name,
+	}
+
+	if err := c.Get(ctx, key, build); err != nil {
+		return nil, errors.Wrapf(err, "failed to get Build/%s", name)
+	}
+
+	return build, nil
 }
 
 // KubeAwareAPIVersions is a sortable slice of kube-like version strings.
