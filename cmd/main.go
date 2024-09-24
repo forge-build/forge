@@ -140,7 +140,7 @@ func main() {
 	// Setup the context that's going to be used in controllers and for the manager.
 	ctx := ctrl.SetupSignalHandler()
 
-	//	setupChecks(mgr)
+	// setupChecks(mgr)
 	err = setupReconcilers(ctx, mgr)
 	if err != nil {
 		setupLog.Error(err, "unable to setup reconcilers")
@@ -165,17 +165,17 @@ func main() {
 	}
 }
 
-func setupChecks(mgr ctrl.Manager) {
-	if err := mgr.AddReadyzCheck("webhook", mgr.GetWebhookServer().StartedChecker()); err != nil {
-		setupLog.Error(err, "unable to create ready check")
-		os.Exit(1)
-	}
-
-	if err := mgr.AddHealthzCheck("webhook", mgr.GetWebhookServer().StartedChecker()); err != nil {
-		setupLog.Error(err, "unable to create health check")
-		os.Exit(1)
-	}
-}
+//func setupChecks(mgr ctrl.Manager) {
+//	if err := mgr.AddReadyzCheck("webhook", mgr.GetWebhookServer().StartedChecker()); err != nil {
+//		setupLog.Error(err, "unable to create ready check")
+//		os.Exit(1)
+//	}
+//
+//	if err := mgr.AddHealthzCheck("webhook", mgr.GetWebhookServer().StartedChecker()); err != nil {
+//		setupLog.Error(err, "unable to create health check")
+//		os.Exit(1)
+//	}
+//}
 
 func setupReconcilers(ctx context.Context, mgr ctrl.Manager) error {
 	if err := (&buildctrl.BuildReconciler{
