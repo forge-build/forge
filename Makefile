@@ -4,6 +4,13 @@ IMG ?= controller:latest
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.30.2
 
+GO_VERSION ?= 1.22.7
+
+GO_CONTAINER_IMAGE ?= docker.io/library/golang:$(GO_VERSION)
+
+
+ARCH ?= $(shell go env GOARCH)
+
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
 GOBIN=$(shell go env GOPATH)/bin
@@ -80,6 +87,12 @@ lint-fix: golangci-lint ## Run golangci-lint linter and perform fixes
 
 ##@ Build
 
+# Define Docker related variables. Releases should modify and double check these vars.
+REGISTRY ?= ghcr.io/forge-build
+
+SHELL_PROVISIONER_IMAGE_NAME ?= forge-provisioner-shell
+SHELL_PROVISIONER_JOB_IMG ?= $(REGISTRY)/$(SHELL_PROVISIONER_IMAGE_NAME)
+
 .PHONY: build
 build: manifests generate fmt vet ## Build manager binary.
 	go build -o bin/manager cmd/main.go
@@ -98,6 +111,16 @@ docker-build: ## Build docker image with the manager.
 .PHONY: docker-push
 docker-push: ## Push docker image with the manager.
 	$(CONTAINER_TOOL) push ${IMG}
+
+.PHONY: docker-build-shell-provisioner
+docker-build-shell-provisioner: ## Build the docker image for shell-provisioner
+	cat ./Dockerfile | DOCKER_BUILDKIT=1 $(CONTAINER_TOOL) build --build-arg ARCH=$(ARCH) --build-arg package=./provisioner/shell --build-arg LDFLAGS="$(LDFLAGS)" . -t $(SHELL_PROVISIONER_JOB_IMG):$(TAG)
+
+
+#.PHONY: docker-build-scanjob
+#docker-build-scanjob: ## Build the docker image for scanjob
+#	DOCKER_BUILDKIT=1 $(DOCKER) build --build-arg ARCH=$(ARCH) --build-arg package=./cmd/scanjob --build-arg LDFLAGS="$(LDFLAGS)" . -t $(SCANJOB_IMG):$(TAG)
+#
 
 # PLATFORMS defines the target platforms for the manager image be built to provide support to multiple
 # architectures. (i.e. make docker-buildx IMG=myregistry/mypoperator:0.0.1). To use this option you need to:

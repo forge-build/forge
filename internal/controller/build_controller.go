@@ -49,6 +49,8 @@ import (
 	buildv1 "github.com/forge-build/forge/api/v1alpha1"
 	"github.com/forge-build/forge/internal/external"
 	forgeerrors "github.com/forge-build/forge/pkg/errors"
+	ssh "github.com/forge-build/forge/pkg/ssh"
+	shellcontroller "github.com/forge-build/forge/provisioner/shell/controller"
 	"github.com/forge-build/forge/util/annotations"
 	utilconversion "github.com/forge-build/forge/util/conversion"
 	"github.com/forge-build/forge/util/predicates"
@@ -58,6 +60,8 @@ const (
 	// deleteRequeueAfter is how long to wait before checking again to see if the cluster still has children during
 	// deletion.
 	deleteRequeueAfter = 5 * time.Second
+
+	SSHTimeout = 10 * time.Second
 )
 
 // BuildReconciler reconciles a Build object
@@ -486,8 +490,8 @@ func (r *BuildReconciler) reconcileConnection(ctx context.Context, build *buildv
 		return ctrl.Result{}, nil
 	}
 
-	if build.Status.Connected {
-		log.V(4).Info("Skipping reconcileConnection because it is already connected")
+	if build.Spec.Connector.Credentials == nil {
+		log.V(4).Info("Skipping reconcileConnection because secret is not yet set")
 		return ctrl.Result{}, nil
 	}
 
@@ -495,7 +499,36 @@ func (r *BuildReconciler) reconcileConnection(ctx context.Context, build *buildv
 	conditions.MarkFalse(build, buildv1.BuildInitializedCondition, buildv1.WaitingForConnectionReason, buildv1.ConditionSeverityInfo, "")
 	// TODO, Try to connect to the infrastructure machine with spec.connector.
 
+	err := r.tryToConnect(ctx, build)
+	if err != nil {
+		return ctrl.Result{
+			RequeueAfter: 2 * time.Second,
+		}, errors.Wrap(err, "failed to connect to the machine")
+	}
+
+	build.Status.Connected = true
+	conditions.MarkTrue(build, buildv1.MachineReadyCondition)
+	r.recorder.Event(build, corev1.EventTypeNormal, "MachineReady", "Machine is ready and connected")
+
 	return ctrl.Result{}, nil
+}
+
+func (r *BuildReconciler) tryToConnect(ctx context.Context, build *buildv1.Build) error {
+	secret := &corev1.Secret{}
+	if err := r.Client.Get(ctx, client.ObjectKey{Namespace: build.Namespace, Name: build.Spec.Connector.Credentials.Name}, secret); err != nil {
+		return errors.Wrap(err, "failed to get secret")
+	}
+
+	sshClient, err := ssh.NewSSHClient(secret)
+	if err != nil {
+		return errors.Wrap(err, "failed to create SSH client")
+	}
+	if err = sshClient.WaitForSSH(SSHTimeout); err != nil {
+		return errors.Wrap(err, "failed to connect to the machine via ssh")
+	}
+	defer sshClient.Disconnect()
+
+	return nil
 }
 
 // reconcileProvisioners reconciles the provisioners for the Build.
@@ -516,6 +549,26 @@ func (r *BuildReconciler) reconcileProvisioners(ctx context.Context, build *buil
 	log.V(4).Info("Checking for provisioners")
 	conditions.MarkFalse(build, buildv1.ProvisionersReadyCondition, buildv1.WaitingForProvisionersReason, buildv1.ConditionSeverityInfo, "")
 	// TODO, Mark the provisioners to run.
+
+	for i := range build.Spec.Provisioners {
+		if build.Spec.Provisioners[i].Type == buildv1.ProvisionerTypeExternal {
+			// TODO, Run the provisioner.
+			// add  ownerRef to the provisioner resource.
+			// watch the resource,
+			// reconcileExternal similar to infrastructure.
+		}
+
+		// Builtin Provsioner
+		if build.Spec.Provisioners[i].Type == buildv1.ProvisionerTypeShell {
+			res, err := shellcontroller.Reconcile(ctx, r.Client, build, &build.Spec.Provisioners[i])
+			if err != nil {
+				return ctrl.Result{}, err
+			}
+			if res.Requeue || res.RequeueAfter > 0 {
+				return res, nil
+			}
+		}
+	}
 
 	return ctrl.Result{}, nil
 }

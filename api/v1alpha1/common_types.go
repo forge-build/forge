@@ -1,5 +1,7 @@
 package v1alpha1
 
+import corev1 "k8s.io/api/core/v1"
+
 const (
 	// BuildNameLabel is the label set on InfraBuild linked to a Build and
 	//provisioners.
@@ -9,6 +11,14 @@ const (
 	// This label allows to easily identify all the components belonging to a provider; the forgectl
 	// tool uses this label for implementing provider's lifecycle operations.
 	ProviderNameLabel = "forge.build/provider"
+
+	// ManagedByLabel is an annotation that can be applied to InfraBuild resources to signify that
+	// some external system is managing the build infrastructure.
+	//
+	// Provider InfraBuild controllers will ignore resources with this annotation.
+	// An external controller must fulfill the contract of the InfraBuild resource.
+	// External infrastructure providers should ensure that the annotation, once set, cannot be removed.
+	ManagedByLabel = "forge.build/managed-by"
 
 	// ManagedByAnnotation is an annotation that can be applied to InfraBuild resources to signify that
 	// some external system is managing the build infrastructure.
@@ -30,6 +40,13 @@ const (
 	// Controllers which allow for selective reconciliation may check this label and proceed
 	// with reconciliation of the object only if this label and a configured value is present.
 	WatchLabel = "cluster.x-k8s.io/watch-filter"
+
+	// BuildSecretType defines the type of secret created by core components.
+	BuildSecretType corev1.SecretType = "forge.build/secret" //nolint:gosec
+
+	// ProvisionerIDLabel is the label set on job linked to a Build and
+	// provisioners.
+	ProvisionerIDLabel = "forge.build/provisioner-uuid"
 )
 
 const (

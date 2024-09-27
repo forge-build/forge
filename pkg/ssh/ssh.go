@@ -480,7 +480,7 @@ func (client *SSHClient) Validate() error {
 }
 
 // WaitForSSH will try to connect to an SSH server. If it fails, then it'll
-// sleep for 5 seconds.
+// sleep for 2 seconds.
 func (client *SSHClient) WaitForSSH(maxWait time.Duration) error {
 	start := time.Now()
 
@@ -496,7 +496,7 @@ func (client *SSHClient) WaitForSSH(maxWait time.Duration) error {
 			break
 		}
 
-		time.Sleep(5 * time.Second)
+		time.Sleep(2 * time.Second)
 	}
 
 	return ErrTimeout

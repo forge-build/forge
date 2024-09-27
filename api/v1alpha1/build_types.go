@@ -68,11 +68,15 @@ type ConnectorSpec struct {
 	// - username
 	// - password and/or privateKey
 	// - host
-	Credentials *corev1.SecretReference `json:"credentials,omitempty"`
+	Credentials *corev1.LocalObjectReference `json:"credentials,omitempty"`
 }
 
 // ProvisionerSpec defines the provisioner to run on the infrastructure machine
 type ProvisionerSpec struct {
+	// UUID is the unique identifier of the provisioner
+	// +optional
+	UUID *string `json:"uuid,omitempty"`
+
 	// Type is the type of provisioner to run on the infrastructure machine
 	// e.g., type: "builtin" or type: "external"
 	// +kubebuilder:validation:Required
@@ -86,6 +90,10 @@ type ProvisionerSpec struct {
 	// Run is the command to run on the infrastructure machine
 	// +optional
 	Run *string `json:"run,omitempty"`
+
+	// RunConfigMapRef is the reference of the configmap containing the script to run on the infrastructure machine
+	// +optional
+	RunConfigMapRef *corev1.ObjectReference `json:"runConfigMapRef,omitempty"`
 
 	// Ref is a reference to the provisioner object which contains the types of provisioners to run.
 	Ref *corev1.ObjectReference `json:"ref,omitempty"`
