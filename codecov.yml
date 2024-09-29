@@ -1,0 +1,7 @@
+ignore:
+  - "cmd/*.go"
+  - "test/**"
+  - "**/*_test.go"
+  - "**/mock_*.go"
+  - "**/fake.go"
+  - "**/zz_generated*.go"
