@@ -24,4 +24,7 @@ const (
 	// DeleteBuildError indicates that an error was encountered
 	// when trying to delete the Build.
 	DeleteBuildError BuildStatusError = "DeleteError"
+
+	// ProvisionerFailedError indicates that the provisioner failed.
+	ProvisionerFailedError BuildStatusError = "ProvisionerFailed"
 )

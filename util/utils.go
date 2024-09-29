@@ -7,6 +7,8 @@ import (
 	"reflect"
 	"strings"
 
+	"k8s.io/utils/ptr"
+
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/gobuffalo/flect"
@@ -150,6 +152,15 @@ func GetBuildByName(ctx context.Context, c client.Client, namespace, name string
 	}
 
 	return build, nil
+}
+
+func GetProvisionerByID(build *buildv1.Build, id string) (*buildv1.ProvisionerSpec, error) {
+	for i := range build.Spec.Provisioners {
+		if ptr.Deref(build.Spec.Provisioners[i].UUID, "") == id {
+			return &build.Spec.Provisioners[i], nil
+		}
+	}
+	return &buildv1.ProvisionerSpec{}, errors.Errorf("provisioner with ID %q not found in Build %q", id, build.Name)
 }
 
 // GetSecretFromSecretReference returns the secret data from the secret reference.

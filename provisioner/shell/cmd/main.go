@@ -15,7 +15,7 @@ limitations under the License.
 */
 
 // Package shell package provides a shell command execution interface.
-package shell
+package main
 
 import (
 	"bytes"
@@ -70,12 +70,15 @@ func main() {
 	logger := ctrl.Log.WithName("shell-provisioner")
 	ctx := context.Background()
 
+	logger.Info("Starting shell provisioner")
+
 	k8sClient, err := initClient()
 	if err != nil {
 		logger.Error(err, "Error creating Kubernetes client")
 		klog.Exit(err)
 	}
 
+	logger.Info("Fetching the ssh-credentials secret")
 	// Read the secret
 	secret := &corev1.Secret{}
 	err = k8sClient.Get(ctx, client.ObjectKey{Namespace: Namespace, Name: SSHCredentialsSecretName}, secret)
@@ -86,6 +89,7 @@ func main() {
 
 	// Read scriptToRunRef
 	if ScriptToRunRef != "" {
+		logger.Info("Fetching the script-to-run from ConfigMap")
 		cm := &corev1.ConfigMap{}
 		if err := k8sClient.Get(ctx, client.ObjectKey{Namespace: Namespace, Name: ScriptToRunRef}, cm); err != nil {
 			logger.Error(err, "Error getting configmap")
@@ -101,7 +105,6 @@ func main() {
 		logger.Error(err, "Error running script")
 		klog.Exit(err)
 	}
-
 }
 
 func run(logger logr.Logger, secret *corev1.Secret) error {
@@ -109,16 +112,19 @@ func run(logger logr.Logger, secret *corev1.Secret) error {
 	if err != nil {
 		return errors.Wrap(err, "Error creating SSH client")
 	}
+	logger.Info("Connecting to the machine via ssh")
 	if err := sshClient.WaitForSSH(SSHTimeout); err != nil {
 		return errors.Wrap(err, "failed to connect to the machine via ssh")
 	}
 	defer sshClient.Disconnect()
 
+	logger.Info("SSH connection established")
 	script := ScriptToRun
 	if script == "" {
 		return errors.New("script to run is empty")
 	}
 
+	logger.Info("Running the script")
 	output := &bytes.Buffer{}
 	errOutput := &bytes.Buffer{}
 	err = sshClient.Run(
@@ -128,8 +134,9 @@ func run(logger logr.Logger, secret *corev1.Secret) error {
 	)
 	if err != nil {
 		logger.Error(err, "Failed to run script", "output", output.String(), "error", errOutput.String())
-		return errors.Wrapf(err, "Failed to run script: %s", errOutput.String())
+		return errors.Wrapf(err, "Failed to run script: error: %s, output: %s", errOutput.String(), output.String())
 	}
+	logger.WithValues("output", output.String()).Info("Script executed")
 
 	return nil
 }

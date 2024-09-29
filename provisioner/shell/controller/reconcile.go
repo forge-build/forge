@@ -2,7 +2,10 @@ package controller
 
 import (
 	"context"
+	"fmt"
 	"time"
+
+	builderror "github.com/forge-build/forge/pkg/errors"
 
 	"k8s.io/utils/ptr"
 
@@ -22,6 +25,7 @@ const (
 )
 
 func Reconcile(ctx context.Context, client client.Client, build *buildv1.Build, spec *buildv1.ProvisionerSpec) (_ ctrl.Result, err error) {
+
 	// Create the Job
 	if spec.UUID == nil {
 		id := uuid.New()
@@ -30,8 +34,10 @@ func Reconcile(ctx context.Context, client client.Client, build *buildv1.Build, 
 			WithBuildNamespace(build.Namespace).
 			WithBuildName(build.Name).
 			WithUUID(id.String()).
-			WithRepo(ShellProvisionerRepo).
-			WithTag(ShellProvisionerTag).
+			// TODO get repo and tag from variables
+			WithRepo("medchiheb/forge-shell-provisioner").
+			WithTag("dev").
+			WithBackOffLimit(ptr.Deref(spec.Retries, 1)).
 			WithSSHCredentialsSecretName(build.Spec.Connector.Credentials.Name)
 
 		if spec.Run != nil {
@@ -46,7 +52,7 @@ func Reconcile(ctx context.Context, client client.Client, build *buildv1.Build, 
 			return ctrl.Result{}, err
 		}
 
-		op, err := controllerutil.CreateOrUpdate(ctx, client, desired, func() error {
+		op, err := controllerutil.CreateOrPatch(ctx, client, desired, func() error {
 			return nil
 		})
 		if err != nil {
@@ -54,6 +60,7 @@ func Reconcile(ctx context.Context, client client.Client, build *buildv1.Build, 
 		}
 
 		spec.UUID = ptr.To(id.String())
+		spec.Status = ptr.To(buildv1.ProvisionerStatusRunning)
 		if op != controllerutil.OperationResultNone {
 			// After job created we RequeueAfter 2 seconds.
 			return ctrl.Result{
@@ -62,7 +69,28 @@ func Reconcile(ctx context.Context, client client.Client, build *buildv1.Build, 
 		}
 	}
 
-	// Watch the Job
+	switch *spec.Status {
+	case buildv1.ProvisionerStatusPending:
+	case buildv1.ProvisionerStatusRunning:
+		// RequeueAfter 2 seconds.
+		return ctrl.Result{
+			RequeueAfter: 2 * time.Second,
+		}, nil
+	case buildv1.ProvisionerStatusCompleted:
+		// Requeue to check any other provisioner.
+		return ctrl.Result{}, nil
+	case buildv1.ProvisionerStatusFailed:
+		// check if provisioner allowed to fail.
+		if spec.AllowFail {
+			return ctrl.Result{}, nil
+		}
+		// Fail the Build if provisioner failed.
+		build.Status.FailureReason = ptr.To(builderror.ProvisionerFailedError)
+		build.Status.FailureMessage = ptr.To(fmt.Sprintf("Provisioner %s failed with Reason %s and Message %s", *spec.UUID, *spec.FailureReason, *spec.FailureMessage))
+		return ctrl.Result{}, nil
+	default:
+		return ctrl.Result{}, nil
+	}
 
 	return ctrl.Result{}, nil
 }

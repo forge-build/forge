@@ -28,5 +28,5 @@ func DeepHashObject(hasher hash.Hash, objectToWrite interface{}) {
 		DisableMethods: true,
 		SpewKeys:       true,
 	}
-	printer.Fprintf(hasher, "%#v", objectToWrite)
+	printer.Fprintf(hasher, "%#v", objectToWrite) // nolint:errcheck
 }

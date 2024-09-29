@@ -7,6 +7,10 @@ const (
 	//provisioners.
 	BuildNameLabel = "forge.build/build-name"
 
+	// BuildNamespaceLabel is the label set on Jobs linked to a Build and
+	// provisioners.
+	BuildNamespaceLabel = "forge.build/build-namespace"
+
 	// ProviderNameLabel is the label set on components in the provider manifest.
 	// This label allows to easily identify all the components belonging to a provider; the forgectl
 	// tool uses this label for implementing provider's lifecycle operations.

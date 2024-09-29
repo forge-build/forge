@@ -89,7 +89,7 @@ func (r *BuildReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager
 		return errors.Wrap(err, "failed setting up with a controller manager")
 	}
 
-	r.recorder = mgr.GetEventRecorderFor("cluster-controller")
+	r.recorder = mgr.GetEventRecorderFor("build-controller")
 	r.externalTracker = external.ObjectTracker{
 		Controller: c,
 		Cache:      mgr.GetCache(),
@@ -496,7 +496,7 @@ func (r *BuildReconciler) reconcileConnection(ctx context.Context, build *buildv
 	}
 
 	log.V(4).Info("Checking for connection to infrastructure machine")
-	conditions.MarkFalse(build, buildv1.BuildInitializedCondition, buildv1.WaitingForConnectionReason, buildv1.ConditionSeverityInfo, "")
+	conditions.MarkFalse(build, buildv1.MachineReadyCondition, buildv1.WaitingForConnectionReason, buildv1.ConditionSeverityInfo, "")
 	// TODO, Try to connect to the infrastructure machine with spec.connector.
 
 	err := r.tryToConnect(ctx, build)
@@ -506,9 +506,15 @@ func (r *BuildReconciler) reconcileConnection(ctx context.Context, build *buildv
 		}, errors.Wrap(err, "failed to connect to the machine")
 	}
 
-	build.Status.Connected = true
 	conditions.MarkTrue(build, buildv1.MachineReadyCondition)
-	r.recorder.Event(build, corev1.EventTypeNormal, "MachineReady", "Machine is ready and connected")
+
+	// Determine if the infrastructure provider machine is ready.
+	preReconcileConnected := build.Status.Connected
+	build.Status.Connected = true
+	// Only record the event if the status has changed
+	if preReconcileConnected != build.Status.Connected {
+		r.recorder.Event(build, corev1.EventTypeNormal, "MachineReady", "Machine connection established")
+	}
 
 	return ctrl.Result{}, nil
 }
@@ -548,17 +554,16 @@ func (r *BuildReconciler) reconcileProvisioners(ctx context.Context, build *buil
 
 	log.V(4).Info("Checking for provisioners")
 	conditions.MarkFalse(build, buildv1.ProvisionersReadyCondition, buildv1.WaitingForProvisionersReason, buildv1.ConditionSeverityInfo, "")
-	// TODO, Mark the provisioners to run.
 
 	for i := range build.Spec.Provisioners {
-		if build.Spec.Provisioners[i].Type == buildv1.ProvisionerTypeExternal {
-			// TODO, Run the provisioner.
-			// add  ownerRef to the provisioner resource.
-			// watch the resource,
-			// reconcileExternal similar to infrastructure.
-		}
+		// TODO, Run the external provisioner.
+		//if build.Spec.Provisioners[i].Type == buildv1.ProvisionerTypeExternal {
+		//	// add  ownerRef to the provisioner resource.
+		//	// watch the resource,
+		//	// reconcileExternal similar to infrastructure.
+		//}
 
-		// Builtin Provsioner
+		// Builtin Provisioner
 		if build.Spec.Provisioners[i].Type == buildv1.ProvisionerTypeShell {
 			res, err := shellcontroller.Reconcile(ctx, r.Client, build, &build.Spec.Provisioners[i])
 			if err != nil {
@@ -568,6 +573,22 @@ func (r *BuildReconciler) reconcileProvisioners(ctx context.Context, build *buil
 				return res, nil
 			}
 		}
+	}
+
+	provisionersReady := true
+	for _, p := range build.Spec.Provisioners {
+		status := ptr.Deref(p.Status, buildv1.ProvisionerStatusUnknown)
+		if status != buildv1.ProvisionerStatusCompleted &&
+			!(status == buildv1.ProvisionerStatusFailed && p.AllowFail) {
+			provisionersReady = false
+			break
+		}
+	}
+
+	if provisionersReady {
+		conditions.MarkTrue(build, buildv1.ProvisionersReadyCondition)
+		r.recorder.Event(build, corev1.EventTypeNormal, "ProvisionersReady", "Provisioners are ready")
+		build.Status.ProvisionersReady = true
 	}
 
 	return ctrl.Result{}, nil

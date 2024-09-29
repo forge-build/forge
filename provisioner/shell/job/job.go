@@ -5,14 +5,13 @@ import (
 	"time"
 
 	"github.com/forge-build/forge/pkg/kube"
-
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 
 	buildv1 "github.com/forge-build/forge/api/v1alpha1"
-	jobcontroller "github.com/forge-build/forge/provisioner/shell/controller"
+	"github.com/forge-build/forge/provisioner/shell"
 )
 
 const (
@@ -33,6 +32,7 @@ type ShellJobBuilder struct {
 
 	ttl                      *time.Duration
 	timeout                  time.Duration
+	backoffLimit             int32
 	tolerations              []corev1.Toleration
 	nodeSelector             map[string]string
 	annotations              map[string]string
@@ -40,7 +40,6 @@ type ShellJobBuilder struct {
 	podSecurityContext       *corev1.PodSecurityContext
 	containerSecurityContext *corev1.SecurityContext
 	podPriorityClassName     string
-	operatorNamespace        string
 	resourceRequirements     corev1.ResourceRequirements
 }
 
@@ -89,6 +88,11 @@ func (s *ShellJobBuilder) WithTimeout(timeout time.Duration) *ShellJobBuilder {
 	return s
 }
 
+func (s *ShellJobBuilder) WithBackOffLimit(backOffLimit int32) *ShellJobBuilder {
+	s.backoffLimit = backOffLimit
+	return s
+}
+
 func (s *ShellJobBuilder) WithTTL(ttl *time.Duration) *ShellJobBuilder {
 	s.ttl = ttl
 	return s
@@ -130,7 +134,7 @@ func (s *ShellJobBuilder) WithPodTemplateLabels(podTemplateLabels map[string]str
 }
 
 func (s *ShellJobBuilder) WithNamespace(ns string) *ShellJobBuilder {
-	s.operatorNamespace = ns
+	s.namespace = ns
 	return s
 }
 
@@ -147,9 +151,10 @@ func (s *ShellJobBuilder) Build() (*batchv1.Job, error) {
 	templateSpec := s.getPodSpec()
 
 	jobLabels := map[string]string{
-		buildv1.ManagedByLabel:     jobcontroller.ForgeProvisionerShellName,
-		buildv1.BuildNameLabel:     s.buildNamespace,
-		buildv1.ProvisionerIDLabel: s.uuid,
+		buildv1.ManagedByLabel:      shell.ForgeProvisionerShellName,
+		buildv1.BuildNameLabel:      s.name,
+		buildv1.ProvisionerIDLabel:  s.uuid,
+		buildv1.BuildNamespaceLabel: s.buildNamespace,
 	}
 	podTemplateLabels := make(map[string]string)
 	for k, v := range jobLabels {
@@ -157,9 +162,9 @@ func (s *ShellJobBuilder) Build() (*batchv1.Job, error) {
 	}
 
 	jobSpec := batchv1.JobSpec{
-		BackoffLimit:          ptr.To(int32(3)), // number of retries before marking job as failed.
+		BackoffLimit:          ptr.To(s.backoffLimit), // number of retries before marking job as failed.
 		Completions:           ptr.To(int32(1)),
-		ActiveDeadlineSeconds: ptr.To(int64(s.timeout.Seconds())),
+		ActiveDeadlineSeconds: DurationSecondsPtr(s.timeout),
 		Template: corev1.PodTemplateSpec{
 			ObjectMeta: metav1.ObjectMeta{
 				Labels:      podTemplateLabels,
@@ -177,7 +182,7 @@ func (s *ShellJobBuilder) Build() (*batchv1.Job, error) {
 
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace:   s.operatorNamespace,
+			Namespace:   s.namespace,
 			Labels:      jobLabels,
 			Annotations: map[string]string{},
 		},
@@ -243,12 +248,20 @@ func (s *ShellJobBuilder) getPodSpec() corev1.PodSpec {
 	)
 
 	return corev1.PodSpec{
-		Volumes:         volumes,
-		Affinity:        LinuxNodeAffinity(),
-		RestartPolicy:   corev1.RestartPolicyNever,
-		Containers:      containers,
-		SecurityContext: &corev1.PodSecurityContext{},
+		ServiceAccountName: shell.ForgeProvisionerShellName,
+		Volumes:            volumes,
+		Affinity:           LinuxNodeAffinity(),
+		RestartPolicy:      corev1.RestartPolicyNever,
+		Containers:         containers,
+		SecurityContext:    &corev1.PodSecurityContext{},
 	}
+}
+
+func DurationSecondsPtr(d time.Duration) *int64 {
+	if d > 0 {
+		return ptr.To(int64(d.Seconds()))
+	}
+	return nil
 }
 
 func (s *ShellJobBuilder) getArgs() []string {
@@ -278,21 +291,22 @@ func GetShellJobName(buildName string) string {
 	return fmt.Sprintf("forge-provisioner-shell-%s", kube.ComputeHash(buildName))
 }
 
-func constructEnvVarSourceFromSecret(envName, secretName, secretKey string) (res corev1.EnvVar) {
-	res = corev1.EnvVar{
-		Name: envName,
-		ValueFrom: &corev1.EnvVarSource{
-			SecretKeyRef: &corev1.SecretKeySelector{
-				LocalObjectReference: corev1.LocalObjectReference{
-					Name: secretName,
-				},
-				Key:      secretKey,
-				Optional: ptr.To(true),
-			},
-		},
-	}
-	return
-}
+//
+//func constructEnvVarSourceFromSecret(envName, secretName, secretKey string) (res corev1.EnvVar) {
+//	res = corev1.EnvVar{
+//		Name: envName,
+//		ValueFrom: &corev1.EnvVarSource{
+//			SecretKeyRef: &corev1.SecretKeySelector{
+//				LocalObjectReference: corev1.LocalObjectReference{
+//					Name: secretName,
+//				},
+//				Key:      secretKey,
+//				Optional: ptr.To(true),
+//			},
+//		},
+//	}
+//	return
+//}
 
 // GetImageRef returns upstream Trivy container image reference.
 func (s *ShellJobBuilder) GetImageRef() string {

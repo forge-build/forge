@@ -2,6 +2,7 @@ package controller
 
 import (
 	buildv1 "github.com/forge-build/forge/api/v1alpha1"
+	"github.com/forge-build/forge/provisioner/shell"
 	batchv1 "k8s.io/api/batch/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
@@ -11,7 +12,7 @@ import (
 // specified client.Object is managed by Forge.
 var ManagedByForgeProvisionerShell = predicate.NewPredicateFuncs(func(obj client.Object) bool {
 	if managedBy, ok := obj.GetLabels()[buildv1.ManagedByLabel]; ok {
-		return managedBy == ForgeProvisionerShellName
+		return managedBy == shell.ForgeProvisionerShellName
 	}
 	return false
 })

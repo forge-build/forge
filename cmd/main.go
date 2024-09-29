@@ -23,6 +23,10 @@ import (
 	"fmt"
 	"os"
 
+	shellcontroller "github.com/forge-build/forge/provisioner/shell/controller"
+	"github.com/pkg/errors"
+	"k8s.io/client-go/kubernetes"
+
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
@@ -57,6 +61,8 @@ func init() {
 var (
 	watchFilterValue string
 	buildConcurrency int
+
+	ForgeCoreNameSpace = os.Getenv("POD_NAMESPACE")
 )
 
 func main() {
@@ -184,6 +190,22 @@ func setupReconcilers(ctx context.Context, mgr ctrl.Manager) error {
 
 		WatchFilterValue: watchFilterValue,
 	}).SetupWithManager(ctx, mgr, concurrency(buildConcurrency)); err != nil {
+		return err
+	}
+
+	kubeConfig := ctrl.GetConfigOrDie()
+	// The only reason we're using kubernetes.Clientset is that we need it to read Pod logs,
+	// which is not supported by the client returned by the ctrl.Manager.
+	clientSet, err := kubernetes.NewForConfig(kubeConfig)
+	if err != nil {
+		return errors.Wrap(err, "unable to create kubernetes clientset")
+	}
+	if err := (&shellcontroller.ShellJobController{
+		Client:    mgr.GetClient(),
+		Logger:    ctrl.Log.WithName("controllers").WithName("ShellJob"),
+		Namespace: "forge-core", // TODO change to ForgeCoreNameSpace
+		Clientset: clientSet,
+	}).SetupWithManager(mgr); err != nil {
 		return err
 	}
 	return nil

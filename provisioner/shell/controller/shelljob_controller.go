@@ -3,6 +3,12 @@ package controller
 import (
 	"context"
 	"fmt"
+
+	"github.com/forge-build/forge/util"
+	"k8s.io/utils/ptr"
+
+	"sigs.k8s.io/cluster-api/util/patch"
+
 	buildv1 "github.com/forge-build/forge/api/v1alpha1"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
@@ -18,17 +24,16 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-const (
-	ForgeProvisionerShellName string = "forge-provisioner-shell"
-)
+var podControlledByJobNotFoundErr = errors.New("pod for job not found")
 
 // ShellJobController watches Kubernetes jobs and reports back to the Build
 type ShellJobController struct {
 	Logger logr.Logger
 	client.Client
 	Clientset *kubernetes.Clientset
-
 	Namespace string
+
+	patchHelper *patch.Helper
 }
 
 func (r *ShellJobController) SetupWithManager(mgr ctrl.Manager) error {
@@ -42,6 +47,8 @@ func (r *ShellJobController) SetupWithManager(mgr ctrl.Manager) error {
 		)).
 		Complete(r.reconcileJobs())
 }
+
+//+kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;create;patch;update
 
 func (r *ShellJobController) reconcileJobs() reconcile.Func {
 	return func(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -60,12 +67,29 @@ func (r *ShellJobController) reconcileJobs() reconcile.Func {
 			return ctrl.Result{}, nil
 		}
 
-		// // nolint:exhaustive
+		buildName := job.GetLabels()[buildv1.BuildNameLabel]
+		buildNamespace := job.GetLabels()[buildv1.BuildNamespaceLabel]
+		provisionerID := job.GetLabels()[buildv1.ProvisionerIDLabel]
+
+		build := &buildv1.Build{}
+		err = r.Client.Get(ctx, client.ObjectKey{Namespace: buildNamespace, Name: buildName}, build)
+		if err != nil {
+			if k8sapierror.IsNotFound(err) {
+				r.Logger.Info("Ignoring cached job that must have been deleted")
+				return ctrl.Result{}, nil
+			}
+			return ctrl.Result{}, fmt.Errorf("getting build from cache: %w", err)
+		}
+		r.patchHelper, err = patch.NewHelper(build, r.Client)
+		if err != nil {
+			return ctrl.Result{}, errors.Wrap(err, "failed to create patch helper")
+		}
+
 		switch jobCondition := job.Status.Conditions[0].Type; jobCondition {
 		case batchv1.JobComplete:
-			err = r.processCompleteScanJob(ctx, job)
+			err = r.processCompleteScanJob(ctx, job, build, provisionerID)
 		case batchv1.JobFailed:
-			err = r.processFailedScanJob(ctx, job)
+			err = r.processFailedScanJob(ctx, job, build, provisionerID)
 		default:
 			err = fmt.Errorf("unrecognized scan job condition: %v", jobCondition)
 		}
@@ -79,59 +103,55 @@ func (r *ShellJobController) reconcileJobs() reconcile.Func {
 
 // processCompleteScanJob handles the completed scan jobs
 // report back to the queue with saving appropriate cache
-// nolint:gocyclo
-func (r *ShellJobController) processCompleteScanJob(ctx context.Context, job *batchv1.Job) error {
-	build := job.GetLabels()[buildv1.BuildNameLabel]
-	provisionerID := job.GetLabels()[buildv1.ProvisionerIDLabel]
-	r.Logger.Info("Job complete", "build", build, "provisionerID", provisionerID)
+func (r *ShellJobController) processCompleteScanJob(ctx context.Context, job *batchv1.Job, build *buildv1.Build, provisionerID string) error {
+	r.Logger.Info("Job complete", "build", build.Name, "provisionerID", provisionerID)
+
+	// TODO think about how to handle the output of the shell job (providing logs)
 
 	// Update Build Provisioner Status
+	provisioner, err := util.GetProvisionerByID(build, provisionerID)
+	if err != nil {
+		return errors.Wrapf(err, "unable to find provisioner with id %s in the build %s", provisionerID, build.Name)
+	}
+	provisioner.Status = ptr.To(buildv1.ProvisionerStatusCompleted)
 
+	if err := r.patchHelper.Patch(ctx, build); err != nil {
+		r.Logger.Error(err, "failed to patch build")
+	}
 	r.Logger.Info("Job complete - Deleting complete shell job", "job", job.Name)
 	return r.deleteJob(ctx, job)
 }
 
 // nolint:gocyclo
-func (r *ShellJobController) processFailedScanJob(ctx context.Context, job *batchv1.Job) error {
-	actionType, err := r.getActionTypeFromJob(job)
-	if err != nil {
-		return err
-	}
-	img, err := r.getContainerImageFromJob(job)
-	if err != nil {
-		return err
-	}
-	if actionType == scanjob.ClusterDeleteAction {
-		r.Metrics.IncrementFailedScansTotal(scanjob.ClusterDeleteAction.String(), img.ID, img.Cluster)
-		return r.deleteJob(ctx, job)
-	}
-	r.Logger.Info("Job failed", "image", img.ID, "cluster", img.Cluster)
+func (r *ShellJobController) processFailedScanJob(ctx context.Context, job *batchv1.Job, build *buildv1.Build, provisionerID string) error {
+	r.Logger.Info("Job failed", "build", build, "provisionerID", provisionerID)
 
 	statuses, err := r.GetTerminatedContainersStatusesByJob(ctx, job)
 	if err != nil {
 		r.Logger.Error(err, "Could not get terminated container statuses")
 		return err
 	}
-	// Decrease the number of running jobs
-	err = r.Cache.DeleteJob(img.ID, img.Cluster)
+
+	provisioner, err := util.GetProvisionerByID(build, provisionerID)
 	if err != nil {
-		return fmt.Errorf("cannot decrease number of running jobs")
+		return errors.Wrapf(err, "unable to find provisioner with id %s in the build %s", provisionerID, build.Name)
 	}
 
 	for container, status := range statuses {
 		if status.ExitCode == 0 {
 			continue
 		}
-		errorMsg := fmt.Sprintf("scanjob failed with reason: %s and message: %s", status.Reason, status.Message)
-		r.Logger.Error(errors.New("scan job failed"), "scanjob failed with reason", "image", img.ID, "cluster", img.Cluster, "container", container, "errorMessage", errorMsg)
-
-		ok := r.setCache(actionType, img, cache.StateError, errorMsg)
-		if !ok {
-			return fmt.Errorf("cannot set cache when job is failed")
-		}
+		errorMsg := fmt.Sprintf("shelljob failed with reason: %s and message: %s", status.Reason, status.Message)
+		r.Logger.Error(errors.New("shell job failed"), "shell failed with reason", "build", build, "provisionerID", provisionerID, "container", container, "errorMessage", errorMsg)
+		provisioner.FailureReason = ptr.To(status.Reason)
+		provisioner.FailureMessage = ptr.To(status.Message)
 	}
 
-	r.Metrics.IncrementFailedScansTotal(actionType.String(), img.ID, img.Cluster)
+	provisioner.Status = ptr.To(buildv1.ProvisionerStatusFailed)
+
+	if err := r.patchHelper.Patch(ctx, build); err != nil {
+		r.Logger.Error(err, "failed to patch build")
+	}
 
 	r.Logger.Info("Deleting failed scan job")
 	return r.deleteJob(ctx, job)

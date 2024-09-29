@@ -99,6 +99,7 @@ build: manifests generate fmt vet ## Build manager binary.
 
 .PHONY: run
 run: manifests generate fmt vet ## Run a controller from your host.
+	export POD_NAMESPACE=forge-core
 	go run ./cmd/main.go
 
 # If you wish to build the manager image targeting other platforms you can use the --platform flag.
@@ -114,7 +115,7 @@ docker-push: ## Push docker image with the manager.
 
 .PHONY: docker-build-shell-provisioner
 docker-build-shell-provisioner: ## Build the docker image for shell-provisioner
-	cat ./Dockerfile | DOCKER_BUILDKIT=1 $(CONTAINER_TOOL) build --build-arg ARCH=$(ARCH) --build-arg package=./provisioner/shell --build-arg LDFLAGS="$(LDFLAGS)" . -t $(SHELL_PROVISIONER_JOB_IMG):$(TAG)
+	cat ./Dockerfile | DOCKER_BUILDKIT=1 $(CONTAINER_TOOL) build --build-arg ARCH=$(ARCH) --build-arg package=./provisioner/shell/cmd --build-arg LDFLAGS="$(LDFLAGS)" . -t $(SHELL_PROVISIONER_JOB_IMG):$(TAG)
 
 
 #.PHONY: docker-build-scanjob
