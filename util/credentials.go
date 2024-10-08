@@ -24,6 +24,7 @@ type SSHCredentials struct {
 	PublicKey  string
 }
 
+// EnsureCredentialsSecret ensures that the Build has a secret with the SSH credentials.
 func EnsureCredentialsSecret(ctx context.Context, client client.Client, build *buildv1.Build, creds SSHCredentials, provider string) error {
 	patchHelper, err := patch.NewHelper(build, client)
 	if err != nil {
@@ -78,6 +79,9 @@ func EnsureCredentialsSecret(ctx context.Context, client client.Client, build *b
 	}
 
 	// patch Build to include the credential secret.
+	// TODO: make this as a contract,
+	// no need for infrabuilds to set the secret name, they should do it, in their spec.
+	// so the Build will read it.
 	build.Spec.Connector.Credentials = &corev1.LocalObjectReference{Name: name}
 
 	err = patchHelper.Patch(ctx, build)
