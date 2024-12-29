@@ -1,5 +1,5 @@
 /*
-Copyright 2024 The Forge Authors.
+Copyright 2024 The Forge contributors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,8 +14,17 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package shell
+package main
 
-const (
-	ForgeProvisionerShellName string = "forge-provisioner-shell"
+import (
+	"os"
+
+	"github.com/forge-build/forge/cmd/forge-build/app"
 )
+
+func main() {
+	cmd := app.NewControllerManagerCommand()
+	if err := cmd.Execute(); err != nil {
+		os.Exit(1)
+	}
+}

@@ -1,3 +1,19 @@
+/*
+Copyright 2024 The Forge Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package controller
 
 import (
@@ -9,7 +25,7 @@ import (
 
 	"k8s.io/utils/ptr"
 
-	buildv1 "github.com/forge-build/forge/api/v1alpha1"
+	buildv1 "github.com/forge-build/forge/pkg/api/v1alpha1"
 	"github.com/forge-build/forge/provisioner/shell/job"
 	"github.com/google/uuid"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -19,13 +35,12 @@ import (
 
 const (
 	ShellProvisionerRepo = "ghcr.io/forge-build/forge-provisioner-shell"
-	ShellProvisionerTag  = "latest"
+	ShellProvisionerTag  = "dev"
 
 	ForgeCoreNamespace = "forge-core"
 )
 
 func Reconcile(ctx context.Context, client client.Client, build *buildv1.Build, spec *buildv1.ProvisionerSpec) (_ ctrl.Result, err error) {
-
 	// Create the Job
 	if spec.UUID == nil {
 		id := uuid.New()
@@ -34,9 +49,8 @@ func Reconcile(ctx context.Context, client client.Client, build *buildv1.Build, 
 			WithBuildNamespace(build.Namespace).
 			WithBuildName(build.Name).
 			WithUUID(id.String()).
-			// TODO get repo and tag from variables
-			WithRepo("medchiheb/forge-shell-provisioner").
-			WithTag("dev").
+			WithRepo(ShellProvisionerRepo).
+			WithTag(ShellProvisionerTag).
 			WithBackOffLimit(ptr.Deref(spec.Retries, 1)).
 			WithSSHCredentialsSecretName(build.Spec.Connector.Credentials.Name)
 

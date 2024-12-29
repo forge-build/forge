@@ -1,5 +1,4 @@
 run:
-  deadline: 5m
   allow-parallel-runners: true
 
 issues:
@@ -9,7 +8,7 @@ issues:
   # restore some of the defaults
   # (fill in the rest as needed)
   exclude-rules:
-    - path: "api/*"
+    - path: "pkg/api/*"
       linters:
         - lll
     - path: "internal/*"
@@ -21,7 +20,7 @@ linters:
   enable:
     - dupl
     - errcheck
-    - exportloopref
+    - copyloopvar
     - goconst
     - gocyclo
     - gofmt

@@ -57,7 +57,7 @@ manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and Cust
 
 .PHONY: generate
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
-	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
+	$(CONTROLLER_GEN) object:headerFile="hack/boilerplates/boilerplate.go.txt" paths="./..."
 
 .PHONY: fmt
 fmt: ## Run go fmt against code.
@@ -95,12 +95,12 @@ SHELL_PROVISIONER_JOB_IMG ?= $(REGISTRY)/$(SHELL_PROVISIONER_IMAGE_NAME)
 
 .PHONY: build
 build: manifests generate fmt vet ## Build manager binary.
-	go build -o bin/manager cmd/main.go
+	go build -o bin/manager cmd/forge-build/main.go
 
 .PHONY: run
 run: manifests generate fmt vet ## Run a controller from your host.
 	export POD_NAMESPACE=forge-core
-	go run ./cmd/main.go
+	go run ./cmd/forge-build/main.go --log-debug=debug
 
 # If you wish to build the manager image targeting other platforms you can use the --platform flag.
 # (i.e. docker build --platform linux/arm64). However, you must enable docker buildKit for it.

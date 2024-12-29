@@ -1,5 +1,5 @@
 /*
-Copyright 2024 Forge.
+Copyright 2024 The Forge Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -122,7 +122,7 @@ func (kp *KeyPair) Fingerprint() (string, error) {
 	b, _ := base64.StdEncoding.DecodeString(string(kp.PublicKey))
 	h := md5.New()
 
-	_, err := io.WriteString(h, string(b))
+	_, err := io.Writer.Write(h, b)
 
 	if err != nil {
 		return "", err

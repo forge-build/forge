@@ -1,15 +1,31 @@
+/*
+Copyright 2024 The Forge Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package controller
 
 import (
 	"context"
 	"fmt"
 
-	"github.com/forge-build/forge/util"
+	"github.com/forge-build/forge/pkg/util"
 	"k8s.io/utils/ptr"
 
 	"sigs.k8s.io/cluster-api/util/patch"
 
-	buildv1 "github.com/forge-build/forge/api/v1alpha1"
+	buildv1 "github.com/forge-build/forge/pkg/api/v1alpha1"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -21,8 +37,9 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
+
+const ControllerName = "Shell-Controller"
 
 var podControlledByJobNotFoundErr = errors.New("pod for job not found")
 
@@ -36,69 +53,81 @@ type ShellJobController struct {
 	patchHelper *patch.Helper
 }
 
-func (r *ShellJobController) SetupWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewControllerManagedBy(mgr).
+// Add creates a new Build controller and adds it to the Manager.
+func Add(ctx context.Context, mgr ctrl.Manager, log logr.Logger, namespace string) error {
+	// Create the reconciler instance
+	reconciler := &ShellJobController{
+		Client:    mgr.GetClient(),
+		Logger:    log,
+		Namespace: namespace,
+	}
+
+	// Set up the controller with custom predicates
+	_, err := builder.ControllerManagedBy(mgr).
 		For(&batchv1.Job{}, builder.WithPredicates(
 			ManagedByForgeProvisionerShell,
-			InNamespace(r.Namespace),
+			InNamespace(reconciler.Namespace),
 			JobHasAnyCondition,
 			HasBuildNameLabel,
 			HasProvisionerIDLabel,
 		)).
-		Complete(r.reconcileJobs())
+		Build(reconciler)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 //+kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;create;patch;update
 
-func (r *ShellJobController) reconcileJobs() reconcile.Func {
-	return func(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-		job := &batchv1.Job{}
-		err := r.Client.Get(ctx, req.NamespacedName, job)
-		if err != nil {
-			if k8sapierror.IsNotFound(err) {
-				r.Logger.Info("Ignoring cached job that must have been deleted")
-				return ctrl.Result{}, nil
-			}
-			return ctrl.Result{}, fmt.Errorf("getting job from cache: %w", err)
-		}
-
-		if len(job.Status.Conditions) == 0 {
-			r.Logger.Info("Ignoring Job without conditions")
+func (r *ShellJobController) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	job := &batchv1.Job{}
+	err := r.Client.Get(ctx, req.NamespacedName, job)
+	if err != nil {
+		if k8sapierror.IsNotFound(err) {
+			r.Logger.Info("Ignoring cached job that must have been deleted")
 			return ctrl.Result{}, nil
 		}
-
-		buildName := job.GetLabels()[buildv1.BuildNameLabel]
-		buildNamespace := job.GetLabels()[buildv1.BuildNamespaceLabel]
-		provisionerID := job.GetLabels()[buildv1.ProvisionerIDLabel]
-
-		build := &buildv1.Build{}
-		err = r.Client.Get(ctx, client.ObjectKey{Namespace: buildNamespace, Name: buildName}, build)
-		if err != nil {
-			if k8sapierror.IsNotFound(err) {
-				r.Logger.Info("Ignoring cached job that must have been deleted")
-				return ctrl.Result{}, nil
-			}
-			return ctrl.Result{}, fmt.Errorf("getting build from cache: %w", err)
-		}
-		r.patchHelper, err = patch.NewHelper(build, r.Client)
-		if err != nil {
-			return ctrl.Result{}, errors.Wrap(err, "failed to create patch helper")
-		}
-
-		switch jobCondition := job.Status.Conditions[0].Type; jobCondition {
-		case batchv1.JobComplete:
-			err = r.processCompleteScanJob(ctx, job, build, provisionerID)
-		case batchv1.JobFailed:
-			err = r.processFailedScanJob(ctx, job, build, provisionerID)
-		default:
-			err = fmt.Errorf("unrecognized scan job condition: %v", jobCondition)
-		}
-		if err != nil {
-			r.Logger.Error(err, "Failed processing job")
-		}
-
-		return ctrl.Result{}, err
+		return ctrl.Result{}, fmt.Errorf("getting job from cache: %w", err)
 	}
+
+	if len(job.Status.Conditions) == 0 {
+		r.Logger.Info("Ignoring Job without conditions")
+		return ctrl.Result{}, nil
+	}
+
+	buildName := job.GetLabels()[buildv1.BuildNameLabel]
+	buildNamespace := job.GetLabels()[buildv1.BuildNamespaceLabel]
+	provisionerID := job.GetLabels()[buildv1.ProvisionerIDLabel]
+
+	build := &buildv1.Build{}
+	err = r.Client.Get(ctx, client.ObjectKey{Namespace: buildNamespace, Name: buildName}, build)
+	if err != nil {
+		if k8sapierror.IsNotFound(err) {
+			r.Logger.Info("Ignoring cached job that must have been deleted")
+			return ctrl.Result{}, nil
+		}
+		return ctrl.Result{}, fmt.Errorf("getting build from cache: %w", err)
+	}
+	r.patchHelper, err = patch.NewHelper(build, r.Client)
+	if err != nil {
+		return ctrl.Result{}, errors.Wrap(err, "failed to create patch helper")
+	}
+	switch jobCondition := job.Status.Conditions[0].Type; jobCondition {
+	case batchv1.JobComplete:
+		err = r.processCompleteScanJob(ctx, job, build, provisionerID)
+	case batchv1.JobFailed:
+		err = r.processFailedScanJob(ctx, job, build, provisionerID)
+	default:
+		err = fmt.Errorf("unrecognized scan job condition: %v", jobCondition)
+	}
+	if err != nil {
+		r.Logger.Error(err, "Failed processing job")
+	}
+
+	return ctrl.Result{}, err
 }
 
 // processCompleteScanJob handles the completed scan jobs
